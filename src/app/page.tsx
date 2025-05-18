@@ -16,8 +16,8 @@ function NavigationBar() {
   <Image
     src="/logo.svg"
     alt="FanLink Logo"
-    fill               // 讓圖片填滿父容器
-    sizes="120px"      // 告訴瀏覽器實際顯示寬度
+    fill
+    sizes="120px"
     className="object-contain"
   />
 </div>
@@ -50,7 +50,6 @@ function SectionOne() {
   </div>
 
   <ScrollAnimation delay={0.1}>
-    {/* === 這裡才是實際排版容器 === */}
     <div className="max-[800px]:w-full">
     <div className="flex items-center
                     max-[800px]:flex-col">
