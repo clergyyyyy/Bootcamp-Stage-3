@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --spacing-base: 0.25rem;
+
+  --color-primary: #000000;
+  --color-secondary: #1B00FF;
+  --color-accent: #FFC2F5;
+  --color-highlight: #91DEFC;
+  --color-success: #D5F13D;
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-lightgray: #CFCDD7;
+
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: 2.5rem;
+  --font-size-4xl: 3rem;
+  --font-size-5xl: 3.5rem;
+
+  --spacing-4: calc(var(--spacing-base) * 4);
+  --spacing-8: calc(var(--spacing-base) * 8);
+}
+
+body {
+  background: var(--color-white);
+  color: var(--color-black);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-primary);
+  margin: 1rem 0rem;
+}
+
+button {
+  background-color: var(--color-secondary);
+  color: var(--color-white);
+  padding: var(--spacing-4);
+  border-radius: 1.75rem;
+  padding: 0.8rem 1.5rem;
+  cursor: pointer;
+}
+
+:root {
+  --color-lightgray: #CFCDD7;
+}
+
+button.lightgray {
+  background-color: var(--color-lightgray);
+  color: #fff;
+}
+
+button.lightgray:hover {
+  background-color: #A9A8B3;
+}
+
+
+
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+section {
+  height: auto;
+  gap: 1rem;
+}
+
+@media (max-width: 500px) {
+  section {
+    @apply flex flex-col w-full;
+  }
+
+  section > * {
+    @apply w-full;
+  }
+}
