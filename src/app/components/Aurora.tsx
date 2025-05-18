@@ -215,7 +215,7 @@ export default function Aurora({
       if (gl.canvas.parentNode === container) container.removeChild(gl.canvas);
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
-  }, []); // 初始化一次即可
+  }, [amplitude, blend, colorStops]);
 
   return <div ref={containerRef} className="aurora-container" />;
 }
