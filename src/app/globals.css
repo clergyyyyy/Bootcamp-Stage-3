@@ -3,14 +3,14 @@
 @theme {
   --spacing-base: 0.25rem;
 
-  --color-primary: #000000;
-  --color-secondary: #1B00FF;
+  --color-primary: #1B00FF;
+  --color-secondary: #666666;
   --color-accent: #FFC2F5;
   --color-highlight: #91DEFC;
   --color-success: #D5F13D;
   --color-black: #000000;
   --color-white: #FFFFFF;
-  --color-lightgray: #CFCDD7;
+  --color-gray: #CFCDD7;
 
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.5rem;
@@ -28,13 +28,16 @@ body {
   color: var(--color-black);
 }
 
-h1, h2, h3, h4, h5, h6 {
-  color: var(--color-primary);
+h1 {
+  color: var(--color-black);
   margin: 1rem 0rem;
 }
 
+h2, h3, h4, h5, h6 {
+  color: var(--color-gray);
+}
+
 button {
-  background-color: var(--color-secondary);
   color: var(--color-white);
   padding: var(--spacing-4);
   border-radius: 1.75rem;
@@ -42,19 +45,16 @@ button {
   cursor: pointer;
 }
 
+input {
+  border-radius: 0.5rem;
+  border-width: 1.5px;
+  border-style: solid;
+  border-color: var(--color-gray);
+}
+
 :root {
   --color-lightgray: #CFCDD7;
 }
-
-button.lightgray {
-  background-color: var(--color-lightgray);
-  color: #fff;
-}
-
-button.lightgray:hover {
-  background-color: #A9A8B3;
-}
-
 
 
 
@@ -71,6 +71,19 @@ body {
 section {
   height: auto;
   gap: 1rem;
+}
+
+@layer utilities {
+  .skeleton {
+    @apply relative overflow-hidden bg-gray-200;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent animate-[shimmer_1.5s_infinite];
+    content: '';
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
 }
 
 @media (max-width: 500px) {

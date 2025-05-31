@@ -7,6 +7,8 @@ import TiltedCard from './components/TiltedCard';
 import LottieComponent from './components/LottieComponent';
 import ScrollAnimation from './components/ScrollAnimation';
 import Image from 'next/image';
+import Button from './components/Button';
+import Link from 'next/link';
 
 // Navigation Bar Component
 function NavigationBar() {
@@ -22,14 +24,17 @@ function NavigationBar() {
   />
 </div>
 
-
-      <div className="flex gap-2">
-        <button className="px-4 py-2 text-black rounded-md transition transform hover:scale-105 lightgray">
-        Login
-        </button>
-        <button className="px-4 py-2 bg-blue-500 text-white rounded-md transition transform hover:scale-105 hover:bg-blue-600">
-          Register
-        </button>
+      <div className="flex gap-2 mr-4">
+        <Link href="/login">
+          <Button variant="secondary" disabled={false}>
+            Login
+          </Button>
+        </Link>
+        <Link href="/register">
+          <Button variant="primary" disabled={false}>
+            Register
+          </Button>
+        </Link>
       </div>
     </nav>
   );
@@ -55,13 +60,13 @@ function SectionOne() {
                     max-[800px]:flex-col">
 
       <div className="w-1/2 max-[800px]:w-full">
-        <h1 className="text-5xl font-black mb-2 max-[800px]:text-3xl">
+        <h1 className="text-5xl text-black font-black mb-2 max-[800px]:text-3xl">
           Your bias, hobby and collections in one page!
         </h1>
         <h2 className="text-2xl font-semibold !text-gray-600 mb-4 max-[800px]:text-xl">
           Join 50M+ people using our platform to introduce themselves! Share your interests and favorite things from your social media profiles.
         </h2>
-        <button className="px-4 py-2 bg-blue-500 text-white rounded transition-transform hover:scale-110">
+        <button className="px-4 py-2 bg-primary text-white rounded transition-transform hover:scale-110">
           Claim Yours
         </button>
       </div>
