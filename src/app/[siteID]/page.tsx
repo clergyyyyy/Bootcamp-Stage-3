@@ -33,7 +33,7 @@ export default function PublicProfilePage() {
     siteID: raw.siteID,
     avatarUrl: raw.avatarUrl,
     bioTitle: raw.bioTitle,
-    bio: raw.introduction,        // or raw.bio 依你資料庫欄位
+    bio: raw.bio,
     socialLinks: raw.socialLinks || {},
     links: raw.links || [],
   };

@@ -76,7 +76,7 @@ export default function OnboardingLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* 進度條 + 步驟點 */}
+      {/* 進度條+步驟 */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-2xl mx-auto">
           {/* 文字進度 */}
@@ -103,7 +103,7 @@ export default function OnboardingLayout() {
       {/* ------- 主要內容：用 AnimatePresence 包住 ------- */}
       <div className="flex-1 px-6 py-2 overflow-y-auto overflow-x-hidden pb-48">
         <div className="max-w-2xl mx-auto relative">
-          <AnimatePresence custom={1 /* 用方向來決定動畫左右 */}>
+          <AnimatePresence custom={1}>
             <motion.div
               key={currentStep}
               custom={1}
