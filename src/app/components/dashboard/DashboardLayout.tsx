@@ -32,24 +32,25 @@ export default function DashboardLayout({
   template: Template | null;
   loading: boolean;
 }) {
-  const handleSave = async () => {
-    const user = getAuth().currentUser;
-    if (!user) return alert('未登入，無法儲存');
+const handleSave = async () => {
+  const user = getAuth().currentUser;
+  if (!user) return alert('未登入，無法儲存');
 
-    const socialLinks = links.reduce<Record<string, string>>((a, l) => {
-      a[l.platform] = l.url;
-      return a;
-    }, {});
+  const socialLinks = links.reduce<Record<string, string>>((a, l) => {
+    a[l.platform] = l.url;
+    return a;
+  }, {});
 
-    await updateDoc(doc(db, 'profiles', user.uid), {
-      avatarUrl,
-      bio,
-      socialLinks,
-      siteID,
-      template: template ? template.templateEngName : undefined, // 若有樣板 id 可存
-    });
-    alert('✅ 已儲存成功！');
-  };
+  await updateDoc(doc(db, 'profiles', user.uid), {
+    avatarUrl,
+    bio,
+    socialLinks,
+    siteID,
+    ...(template?.templateEngName ? { template: template.templateEngName } : {}),
+  });
+
+  alert('✅ 已儲存成功！');
+};
 
   return (
     <div className="flex h-screen overflow-hidden">

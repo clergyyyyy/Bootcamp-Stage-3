@@ -30,7 +30,7 @@ function NavigationBar() {
             Login
           </Button>
         </Link>
-        <Link href="/register">
+        <Link href="/login">
           <Button variant="primary" disabled={false}>
             Register
           </Button>
@@ -66,9 +66,11 @@ function SectionOne() {
         <h2 className="text-2xl font-semibold !text-gray-600 mb-4 max-[800px]:text-xl">
           Join 50M+ people using our platform to introduce themselves! Share your interests and favorite things from your social media profiles.
         </h2>
+        <Link href="/login">
         <button className="px-4 py-2 bg-primary text-white rounded transition-transform hover:scale-110">
           Claim Yours
         </button>
+        </Link>
       </div>
 
 
@@ -106,7 +108,7 @@ function SectionTwo() {
             <div className="w-1/2">
                 <h1 className="text-5xl font-black mb-2 max-[800px]:text-3xl">Create and Customize Your Social Universe</h1>
                 <h2 className="text-2xl font-semibold !text-gray-600 mb-4 max-[800px]:text-xl">Bring together your Instagram, Threads, Facebook, Twitter, and LINE profiles on a single page. Seamlessly embed Spotify and YouTube to share your favorite content and connect with your community like never before.</h2>
-                <button className="px-4 py-2 bg-green-500 text-white rounded transition transform hover:scale-110">Get Started</button>
+                <Link href="/login"><button className="px-4 py-2 bg-primary text-white rounded transition transform hover:scale-110">Get Started</button></Link>
             </div>
 
         </section>

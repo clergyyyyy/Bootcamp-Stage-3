@@ -1,6 +1,14 @@
+// StepChooseUsername.tsx
 'use client';
 
-import { useState } from 'react';
+import {
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
+import { getDocs, query, where, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import Image from 'next/image';
 
 type Props = {
   formData: { siteID: string };
@@ -8,47 +16,67 @@ type Props = {
   onNext: () => void;
 };
 
-export default function StepChooseUsername({ formData, updateForm, onNext }: Props) {
-  const [error, setError] = useState('');
+export type StepChooseUsernameHandle = {
+  submit: () => Promise<void>;
+};
 
-  /* 只有這裡──submit 時才呼叫 onNext */
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+const StepChooseUsername = forwardRef<StepChooseUsernameHandle, Props>(
+  ({ formData, updateForm, onNext }, ref) => {
+    const [error, setError] = useState('');
+    StepChooseUsername.displayName = "StepChooseUsername";
 
-    if (!formData.siteID.trim()) {
-      setError('請填寫完整的 Site ID 與 Site 名稱');
-      return;
-    }
+    useImperativeHandle(ref, () => ({
+      async submit() {
+        const siteID = formData.siteID.trim();
 
-    setError('');
-    onNext();
-  };
+        if (!siteID) {
+          setError('請填寫 Site ID');
+          return;
+        }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h1 className="text-2xl font-bold">建立 FanLink 基本資料</h1>
+        const q = query(collection(db, 'profiles'), where('siteID', '==', siteID));
+        const querySnapshot = await getDocs(q);
 
-      <input
-        className="w-full border px-2 py-1 rounded"
-        placeholder="Site ID"
-        value={formData.siteID}
-        onChange={(e) => updateForm({ siteID: e.target.value })}
-        required
-      />
+        if (!querySnapshot.empty) {
+          setError('此 Site ID 已被使用，請換一個');
+          return;
+        }
 
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+        setError('');
+        onNext();
+      },
+    }));
 
-      <div className="fixed bottom-0 left-0 w-full bg-white shadow-md px-6 py-4 z-50">
-        <div className="flex justify-between flex-row-reverse">
-          <button
-            type="button"
-            onClick={onNext}
-            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-          >
-            下一步
-          </button>
+    return (
+      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+        <h1 className="text-2xl font-bold text-black">Create FanLink Site ID</h1>
+        <div className="flex w-full h-full rounded-md object-fit">
+          <Image
+            src="/onboard-pic.png"
+            alt="onboarding.1"
+            width={600}
+            height={300}
+          />
         </div>
-      </div>
-    </form>
-  );
-}
+        <h3 className="text-l !text-gray-600">
+          FanLink site ID represents your personal website address.
+        </h3>
+        <div className="flex items-center w-full">
+          <span className="whitespace-nowrap text-gray-500 text-sm pr-2">
+            https://fanlink-demo.vercel.app/
+          </span>
+          <input
+            className="flex-1 border px-2 py-1 rounded"
+            placeholder="Site ID"
+            value={formData.siteID}
+            onChange={(e) => updateForm({ siteID: e.target.value })}
+            required
+          />
+        </div>
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+      </form>
+    );
+  }
+);
+
+export default StepChooseUsername;

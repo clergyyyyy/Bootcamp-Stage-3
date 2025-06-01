@@ -61,8 +61,6 @@ export default function DashboardPage() {
     return un;
   }, [router]);
 
-  if (loading) return <p className="p-6">載入中…</p>;
-
 return (
   <>
     {/* --- Desktop ≥1032px (lg) ------------------------------------------------ */}

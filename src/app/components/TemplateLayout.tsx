@@ -17,7 +17,7 @@ export type ProfileData = {
 };
 
 const socialIcon: Record<string, string> = {
-  Instagram: '/icons/instagram.svg',
+  Instagram: '/icons/Instagram.svg',
   YouTube: '/icons/youtube.svg',
   Threads: '/icons/threads.svg',
   X: '/icons/x.svg',

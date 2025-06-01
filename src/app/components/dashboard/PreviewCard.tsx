@@ -100,6 +100,7 @@ export default function PreviewCard({
         {/* Avatar + Title + Bio */}
         <div className="flex flex-col items-center space-y-2">
           {profile.avatarUrl ? (
+          <div className="relative w-24 h-24 rounded-full overflow-hidden">
             <Image
               src={profile.avatarUrl}
               alt="avatar"
@@ -107,6 +108,7 @@ export default function PreviewCard({
               sizes="96px"
               className="rounded-full object-cover"
             />
+            </div>
           ) : (
             <div className="h-24 w-24 rounded-full bg-gray-200" />
           )}

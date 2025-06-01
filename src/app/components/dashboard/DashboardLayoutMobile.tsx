@@ -47,7 +47,7 @@ export default function MobileDashboard({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* 內容區域 */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto">
         {tab === 'edit' ? (
           loading ? (
             <div className="space-y-6">
@@ -98,27 +98,31 @@ export default function MobileDashboard({
         )}
       </div>
 
-      {/* Bottom Tab */}
-      <nav className="flex h-20 border-t bg-gray-400">
-        <button
-          onClick={() => setTab('edit')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-sm ${
-            tab === 'edit' ? 'text-blue-600' : 'text-gray-500'
-          }`}
-        >
-        <PencilLine className="h-24 w-24" />
-          編輯
-        </button>
-        <button
-          onClick={() => setTab('preview')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-sm ${
-            tab === 'preview' ? 'text-blue-600' : 'text-gray-500'
-          }`}
-        >
-        <Eye className="h-24 w-24" />   
-          預覽
-        </button>
-      </nav>
-    </div>
+{/* Bottom Tab */}
+<nav className="flex h-24 p-3">
+  <button
+    onClick={() => setTab('edit')}
+    className={`flex-1 flex flex-col items-center justify-center gap-1 text-sm mx-1 rounded-xl shadow-sm transition-all duration-200 ${
+      tab === 'edit' 
+        ? '!text-blue-600 bg-blue-50 shadow-md' 
+        : '!text-gray-600 bg-white hover:bg-gray-50'
+    }`}
+  >
+    <PencilLine className="h-6 w-6" />
+    編輯
+  </button>
+  <button
+    onClick={() => setTab('preview')}
+    className={`flex-1 flex flex-col items-center justify-center gap-1 text-sm mx-1 rounded-xl shadow-sm transition-all duration-200 ${
+      tab === 'preview' 
+        ? '!text-white bg-blue-500 shadow-md' 
+        : '!text-gray-600 bg-white hover:bg-gray-50'
+    }`}
+  >
+    <Eye className="h-6 w-6" />   
+    預覽
+  </button>
+</nav>
+</div>
   );
 }
