@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+#firebase
+/react-practice-44527-firebase-adminsdk-fbsvc-*.json
+
 # dependencies
 /node_modules
 /.pnp
