@@ -12,6 +12,7 @@ import type { StepChoosePlatformHandle } from './StepChoosePlatform';
 import StepChoosePlatform  from './StepChoosePlatform';
 import StepInputLink       from './StepInputLink';
 import StepInputSelfIntro  from './StepInputSelfIntro';
+import { uploadToImgbb } from '@/lib/uploadToImgbb';
 
 /* ---------- 基本設定 ---------- */
 const steps = [
@@ -28,6 +29,7 @@ export type FormData = {
   socialPlatforms: string[];
   socialLinks: Record<string, string>;
   avatarUrl: string;
+  avatarFile: File | null;
   bioTitle: string;
   bio: string;
 };
@@ -42,6 +44,7 @@ export default function OnboardingLayout() {
     socialPlatforms: [],
     socialLinks: {},
     avatarUrl: '',
+    avatarFile: null,
     bioTitle: '',
     bio: '',
   });
@@ -66,6 +69,28 @@ export default function OnboardingLayout() {
   };
   const goBack = () => stepIndex > 0 && setStepIndex((i) => i - 1);
   const updateForm = (d: Partial<FormData>) => setFormData((prev) => ({ ...prev, ...d }));
+
+  const handleSubmit = async () => {
+    const user = auth.currentUser;
+  if (!user) {
+    alert('請先登入');
+    return;
+  }
+  let avatarUrl = formData.avatarUrl;
+
+  // 若有待上傳檔案才呼叫 imgbb
+  if (formData.avatarFile) {
+    avatarUrl = await uploadToImgbb(formData.avatarFile);
+  }
+
+  // 把 avatarUrl 與其他欄位寫入 Firestore
+  await setDoc(doc(db, 'profiles', user.uid), {
+    ...formData,
+    avatarUrl,
+    avatarFile: undefined,   // 不存 File
+  });
+  router.push(`/complete?uid=${user.uid}`);
+};
 
   /* ---------- Framer-motion 變化 ---------- */
   const variants = {
@@ -187,20 +212,9 @@ export default function OnboardingLayout() {
             } else if (currentStep === 'ChoosePlatform') {
               platformRef.current?.submit();
             } else if (stepIndex === steps.length - 1) {
-              // ✅ Final Submission
-              const user = auth.currentUser;
-              if (!user) {
-                alert('請先登入');
-                return;
+              await handleSubmit();
               }
-              try {
-                await setDoc(doc(db, 'profiles', user.uid), formData, { merge: true });
-                router.push(`/complete?uid=${user.uid}`);
-              } catch (err) {
-                console.error('提交失敗', err);
-                alert('無法提交，請稍後再試');
-              }
-            } else {
+              else {
               goNext();
             }
           }}

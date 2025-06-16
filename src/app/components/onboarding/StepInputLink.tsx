@@ -41,7 +41,7 @@ const validateUrl = (url: string, platform: string): { isValid: boolean; message
     X: /x\.com\/|twitter\.com\//,
     LINE: /line\.me\//,
     Shopee: /shopee\./,
-    Threads: /threads\.net\//,
+    Threads: /threads\.com\//,
   };
 
   const platformRegex = platformChecks[platform];

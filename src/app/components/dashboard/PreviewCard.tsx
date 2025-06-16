@@ -4,12 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Image from 'next/image';
-
-export type LinkItem = {
-  id: string;
-  platform: string;
-  url: string;
-};
+import { Template } from '@/types/Template'; // 使用統一的 Template 類型
+import type { Profile } from '@/types/profile';
 
 const socialIcon: Record<string, string> = {
   Instagram: '/icons/instagram.svg',
@@ -21,24 +17,12 @@ const socialIcon: Record<string, string> = {
   Shopee: '/icons/shopee.svg',
   LINE: '/icons/line.svg',
   TikTok: '/icons/tiktok.svg',
-};
-
-export type Template = {
-  bgImage?: string;
-  fontFamily?: string;
-  color: {
-    fontPrimary: string;
-    fontSecondary: string;
-    buttonPrimary: string;
-    buttonSecondary: string;
-  };
-  border: {
-    radius: number;
-    style: string;
-  };
+  Facebook: '/icons/facebook.svg',
 };
 
 const defaultTemplate: Template = {
+  name: 'default',
+  templateEngName: 'default',
   color: {
     fontPrimary: '#000000',
     fontSecondary: '#666666',
@@ -48,18 +32,52 @@ const defaultTemplate: Template = {
   border: { radius: 8, style: 'solid' },
 };
 
+// YouTube URL 轉換為嵌入式 URL 的函數
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  try {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) {
+        return `https://www.youtube.com/embed/${match[1]}`;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+// Spotify URL 轉換為嵌入式 URL 的函數
+const getSpotifyEmbedUrl = (url: string): string | null => {
+  try {
+    const patterns = [
+      /spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/,
+      /open\.spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) {
+        const [, type, id] = match;
+        return `https://open.spotify.com/embed/${type}/${id}`;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 export default function PreviewCard({
   profile,
   template,
 }: {
-  profile: {
-    avatarUrl?: string;
-    introduction?: string;
-    links?: LinkItem[];
-    socialLinks?: Record<string, string>;
-    siteID?: string;
-    templateKey?: string;
-  };
+profile: Partial<Profile>;
   template?: Template;
 }) {
   /* ---------------- local state ---------------- */
@@ -75,15 +93,13 @@ export default function PreviewCard({
           if (snap.exists()) {
             setLoadedTemplate(snap.data() as Template);
           }
-        } catch (err) {
-          console.error('載入 Template 失敗', err);
+        } catch {
         }
       })();
     }
   }, [template, profile.templateKey]);
 
   /* ---------------- render ---------------- */
-  const links = profile.links ?? [];
   const { bgImage, fontFamily, color, border } = tpl;
 
   return (
@@ -100,14 +116,14 @@ export default function PreviewCard({
         {/* Avatar + Title + Bio */}
         <div className="flex flex-col items-center space-y-2">
           {profile.avatarUrl ? (
-          <div className="relative w-24 h-24 rounded-full overflow-hidden">
-            <Image
-              src={profile.avatarUrl}
-              alt="avatar"
-              fill
-              sizes="96px"
-              className="rounded-full object-cover"
-            />
+            <div className="relative w-24 h-24 rounded-full overflow-hidden">
+              <Image
+                src={profile.avatarUrl}
+                alt="avatar"
+                fill
+                sizes="96px"
+                className="rounded-full object-cover"
+              />
             </div>
           ) : (
             <div className="h-24 w-24 rounded-full bg-gray-200" />
@@ -115,7 +131,7 @@ export default function PreviewCard({
 
           {profile.siteID && (
             <h1 className="text-lg font-bold" style={{ color: color.fontPrimary }}>
-              {profile.siteID}
+              {profile.bioTitle}
             </h1>
           )}
 
@@ -126,36 +142,139 @@ export default function PreviewCard({
           )}
         </div>
 
-        {/* Links */}
-        {links.length > 0 && (
+        {/* 連結區塊 */}
+        {profile.links && profile.links.length > 0 && (
           <div className="flex flex-col gap-4">
-            {links.map((link) => (
-        <a
-          key={link.id}
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-3 justify-start whitespace-nowrap transition-transform hover:scale-[1.02]"
-          style={{
-            backgroundColor: color.buttonPrimary,
-            borderRadius: `${border.radius}px`,
-            borderStyle: border.style,
-            color: color.fontPrimary,
-          }}
-        >
-          {socialIcon[link.platform] && (
-            <Image
-              src={socialIcon[link.platform]}
-              alt={link.platform}
-              width={20}
-              height={20}
-              className="h-5 w-5 shrink-0"
-            />
-          )}
-          <span className="truncate">{link.platform}</span>
-        </a>
+            {profile.links.map((linkItem) => {
 
-            ))}
+              // 如果沒有 type 屬性，根據 platform 推斷類型
+              let linkType = linkItem.type;
+              if (!linkType) {
+                const platform = linkItem.platform || ''; // 確保不是 undefined
+                
+                if (platform === 'YouTube') {
+                  linkType = 'youtube';
+                } else if (platform === 'Spotify') {
+                  linkType = 'spotify';
+                } else if (platform && ['Instagram', 'Threads', 'Facebook', 'LINE', 'TikTok', 'X', 'Shopee', 'GitHub'].includes(platform)) {
+                  linkType = 'social';
+                } else {
+                  linkType = 'custom';
+                }
+              }
+
+              // YouTube
+              if (linkType === 'youtube') {
+                const embedUrl = getYouTubeEmbedUrl(linkItem.url);
+                
+                if (!embedUrl) {
+                  return null;
+                }
+                
+                return (
+                  <div key={linkItem.id} className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden shadow-lg">
+                    <iframe
+                      src={embedUrl}
+                      title="YouTube video player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      className="absolute top-0 left-0 w-full h-full"
+                      style={{
+                        borderRadius: `${border.radius}px`,
+                      }}
+                    />
+                  </div>
+                );
+              }
+
+              // Spotify 嵌入式播放器
+              if (linkType === 'spotify') {
+                const embedUrl = getSpotifyEmbedUrl(linkItem.url);
+                
+                if (!embedUrl) {
+                  return null;
+                }
+                
+                return (
+                  <div key={linkItem.id} className="w-full rounded-lg overflow-hidden shadow-lg">
+                    <iframe
+                      src={embedUrl}
+                      width="100%"
+                      height="352"
+                      frameBorder="0"
+                      allowTransparency={true}
+                      allow="encrypted-media"
+                      title="Spotify player"
+                      style={{
+                        borderRadius: `${border.radius}px`,
+                      }}
+                    />
+                  </div>
+                );
+              }
+
+              // 社群平台按鈕
+              if (linkType === 'social') {
+                // 修正：檢查 platform 是否存在且有對應的圖標
+                const platformName = linkItem.platform;
+                if (!platformName) {
+                  return null;
+                }
+
+                return (
+                  <a
+                    key={linkItem.id}
+                    href={linkItem.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-3 justify-start whitespace-nowrap transition-transform hover:scale-[1.02]"
+                    style={{
+                      backgroundColor: color.buttonSecondary,
+                      borderRadius: `${border.radius}px`,
+                      borderStyle: border.style,
+                      color: color.fontPrimary,
+                    }}
+                  >
+                    {socialIcon[platformName] && (
+                      <Image
+                        src={socialIcon[platformName]}
+                        alt={platformName}
+                        width={20}
+                        height={20}
+                        className="h-5 w-5 shrink-0"
+                      />
+                    )}
+                    <span className="truncate">{platformName}</span>
+                  </a>
+                );
+              }
+
+              // 自訂連結按鈕
+              if (linkType === 'custom') {
+                const displayText = linkItem.platform || '自訂連結';
+                
+                return (
+                  <a
+                    key={linkItem.id}
+                    href={linkItem.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-4 py-3 text-center transition-transform hover:scale-[1.02]"
+                    style={{
+                      backgroundColor: color.buttonPrimary,
+                      borderRadius: `${border.radius}px`,
+                      borderStyle: border.style,
+                      color: '#fff',
+                    }}
+                  >
+                    {displayText}
+                  </a>
+                );
+              }
+
+              return null;
+            })}
           </div>
         )}
 

@@ -1,13 +1,18 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "CommonJS",
-    "target": "ES2020",
+    "module": "ESNext",
+    "target": "ES2022",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
-    "moduleResolution": "node",
-    "baseUrl": ".",                       // ⬅️ 加入
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]                   // ⬅️ 加入
-    }
+      "@/*": ["src/*"]
+    },
+    "types": ["node"]
+  },
+  "ts-node": {
+    "esm": true
   }
 }

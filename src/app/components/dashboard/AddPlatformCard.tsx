@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { LinkItem } from './LinkItem';
+import { LinkItem, LinkType } from '@/types/link';
 
 const platforms = [
   'Instagram',
@@ -12,6 +12,8 @@ const platforms = [
   'TikTok',
   'X',
   'Shopee',
+  'YouTube',
+  'Spotify',
 ];
 
 export default function AddPlatformCard({ onAdd }: { onAdd: (item: LinkItem) => void }) {
@@ -37,20 +39,54 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: LinkItem) => 
   };
 
   const handleConfirm = () => {
-    if (!selectedPlatform) return;
-    onAdd({ id: selectedPlatform, platform: selectedPlatform, url });
+    if (!selectedPlatform || !url) return;
+    
+    let linkItem: LinkItem;
+    
+    if (selectedPlatform === 'YouTube') {
+      linkItem = {
+        id: `youtube-${Date.now()}`,
+        type: 'youtube' as LinkType,
+        platform: 'YouTube',
+        url: url,
+      };
+    } else if (selectedPlatform === 'Spotify') {
+      linkItem = {
+        id: `spotify-${Date.now()}`,
+        type: 'spotify' as LinkType,
+        platform: 'Spotify',
+        url: url,
+      };
+    } else {
+      linkItem = {
+        id: `social-${selectedPlatform}-${Date.now()}`,
+        type: 'social' as LinkType,
+        platform: selectedPlatform,
+        url: url,
+      };
+    }
+    
+    onAdd(linkItem);
     handleCollapse();
   };
 
-  // 處理動畫完成
   useEffect(() => {
     if (isAnimating) {
       const timer = setTimeout(() => {
         setIsAnimating(false);
-      }, 300); // 與 CSS transition 時間保持一致
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [isAnimating]);
+
+  const getPlaceholderText = () => {
+    if (selectedPlatform === 'YouTube') {
+      return '輸入 YouTube 影片網址';
+    } else if (selectedPlatform === 'Spotify') {
+      return '輸入 Spotify 歌曲、專輯或播放清單網址';
+    }
+    return '輸入平台網址';
+  };
 
   return (
     <div className="my-4 w-full">
@@ -86,7 +122,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: LinkItem) => 
         <div className={`space-y-4 transition-opacity duration-200 ${expanded ? 'opacity-100 delay-100' : 'opacity-0'}`}>
           {/* 橫向平台清單 */}
           <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4 w-full hide-scrollbar">
-            <div className="flex w-max gap-3  hide-scrollbar">
+            <div className="flex w-max gap-3 hide-scrollbar">
               {platforms.map((platform, index) => (
                 <button
                   key={platform}
@@ -97,7 +133,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: LinkItem) => 
                       : 'bg-gray-400 text-gray-700 border-gray-300 hover:bg-gray-500 hover:border-gray-400'
                   }`}
                   style={{
-                    transitionDelay: expanded ? `${index * 30}ms` : '0ms', // 錯開動畫時間
+                    transitionDelay: expanded ? `${index * 30}ms` : '0ms',
                   }}
                 >
                   {platform}
@@ -110,7 +146,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: LinkItem) => 
           <div className="relative">
             <input
               type="text"
-              placeholder="輸入平台網址"
+              placeholder={getPlaceholderText()}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className="w-full border border-gray-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder-gray-400"
@@ -133,9 +169,9 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: LinkItem) => 
             </button>
             <button 
               onClick={handleConfirm} 
-              disabled={!selectedPlatform}
+              disabled={!selectedPlatform || !url}
               className={`px-4 py-2 text-sm rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                selectedPlatform 
+                selectedPlatform && url
                   ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg' 
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
