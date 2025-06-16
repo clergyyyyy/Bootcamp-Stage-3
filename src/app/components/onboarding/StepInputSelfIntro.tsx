@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { getDocs, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { FormData } from './OnboardingLayout';
@@ -12,36 +12,88 @@ type Props = {
   setFormData: React.Dispatch<React.SetStateAction<FormData>>;
 };
 
+function InlineTextarea({
+  value,
+  onChange,
+  maxLength = 160,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  maxLength?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const finish = useCallback(() => {
+  setEditing(false);
+  if (ref.current) onChange(ref.current.innerText.trim());
+}, [onChange]);
+
+  /* 監聽點擊外部 → 結束編輯 */
+  useEffect(() => {
+    if (!editing) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) finish();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [editing, finish]);
+
+  /* 鍵盤：Shift+Enter 換行；Enter 儲存並退出 */
+  const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      finish();
+    } else if (
+      maxLength &&
+      ref.current &&
+      ref.current.innerText.length >= maxLength &&
+      e.key.length === 1 &&
+      !e.ctrlKey &&
+      !e.metaKey
+    ) {
+      e.preventDefault();
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div
+        className="cursor-text whitespace-pre-line border px-3 py-2 rounded min-h-[2.5rem]"
+        onClick={() => setEditing(true)}
+      >
+        {value || <span className="text-gray-400">Tell us more about yourself…</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onKeyDown={handleKey}
+      className="whitespace-pre-wrap border px-3 py-2 rounded outline-none min-h-[2.5rem]"
+    >
+      {value}
+    </div>
+  );
+}
+
 export default function StepInputSelfIntro({
   formData,
   setFormData,
 }: Omit<Props, 'onNext'>) { 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  /* ---------- 選檔（僅暫存＋本地預覽） ---------- */
+  const handleSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  try {
-    const imgbbApiKey = '799956b901b3d647e5dc198601d9040d'; // ⬅️ 換成你的 API 金鑰
-
-    const uploadFormData = new FormData();
-    uploadFormData.append('image', file);
-
-    const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbApiKey}`, {
-      method: 'POST',
-      body: uploadFormData,
-    });
-
-    const data = await res.json();
-    const url = data.data.url;
-
-    setFormData(prev => ({ ...prev, avatarUrl: url }));
-  } catch (err) {
-    console.error('圖片上傳失敗', err);
-    alert('圖片上傳失敗，請稍後再試');
-  }
-};
+    // 暫存在 formData，父層 Submit 時再呼叫 uploadToImgbb(file)
+    setFormData(prev => ({ ...prev, avatarFile: file }));
+  };
 
   const handleGenerateAI = async () => {
     const snapshot = await getDocs(collection(db, 'introduction-template'));
@@ -50,6 +102,8 @@ const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const random = docs[Math.floor(Math.random() * docs.length)];
     setFormData(prev => ({ ...prev, bio: random.slice(0, 80) }));
   };
+
+  
 
   return (
     <div className="space-y-6">
@@ -83,7 +137,7 @@ const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={handleUpload}
+          onChange={handleSelectFile}
         />
       </div>
 
@@ -100,18 +154,13 @@ const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         />
       </div>
 
-      {/* Bio */}
+      {/* Introduction */}
       <div>
         <label className="block font-semibold mb-1">Introduction</label>
-        <textarea
+        <InlineTextarea
           value={formData.bio}
-          onChange={(e) =>
-            setFormData(prev => ({ ...prev, bio: e.target.value.slice(0, 160) }))
-          }
-          className="w-full border px-3 py-2 rounded resize-none"
-          rows={4}
           maxLength={160}
-          placeholder="Tell us more about yourself..."
+          onChange={v => setFormData(prev => ({ ...prev, bio: v }))}
         />
         <div className="text-right text-xs text-gray-500">
           {formData.bio.length}/160

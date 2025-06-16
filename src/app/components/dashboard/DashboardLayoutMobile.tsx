@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import ImageUploader from './ImageUploader';
 import { EditableText } from './EditableText';
 import SortableLinkList from './SortableLinkList';
 import AddPlatformCard from './AddPlatformCard';
 import PreviewCard from './PreviewCard';
-import type { LinkItem } from './LinkItem';
+import type { LinkItem } from '@/types/link';
 import type { Template } from '@/types/Template';
 import { PencilLine, Eye } from 'lucide-react';
+import ImageUploader from './ImageUploader';
+import { uploadToImgbb } from '@/lib/uploadToImgbb';
 
 /**
  * 行動版 Dashboard，改成兩個分頁（編輯 / 預覽）
@@ -17,6 +18,7 @@ import { PencilLine, Eye } from 'lucide-react';
 export default function MobileDashboard({
   avatarUrl,
   setAvatarUrl,
+  bioTitle, setBioTitle, 
   bio,
   setBio,
   links,
@@ -27,6 +29,8 @@ export default function MobileDashboard({
 }: {
   avatarUrl: string;
   setAvatarUrl: (url: string) => void;
+  bioTitle: string;
+  setBioTitle: (title: string) => void;
   bio: string;
   setBio: (bio: string) => void;
   links: LinkItem[];
@@ -37,7 +41,16 @@ export default function MobileDashboard({
 }) {
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
 
-  /* -------- skeleton -------- */
+  const handleAvatarSelect = async (file: File | null) => {
+    if (!file) {
+     setAvatarUrl('');
+     return;
+    }
+    const url = await uploadToImgbb(file);
+    setAvatarUrl(url);
+  };
+
+  
   const Skeleton = ({ className }: { className?: string }) => (
     <div
       className={`rounded animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left ${className}`}
@@ -46,8 +59,8 @@ export default function MobileDashboard({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* 內容區域 */}
-      <div className="flex-1 overflow-auto">
+      {}
+      <div className="flex-1 overflow-auto p-6">
         {tab === 'edit' ? (
           loading ? (
             <div className="space-y-6">
@@ -59,18 +72,35 @@ export default function MobileDashboard({
             </div>
           ) : (
             <>
-              {/* Avatar */}
+              {}
               <section className="mb-6">
-                <h2 className="text-sm text-center text-gray-400 font-semibold mb-2 bg-gray-100">頭貼</h2>
-                <ImageUploader onUpload={setAvatarUrl} />
+                <h2 className="text-sm text-center !text-gray-600 font-semibold mb-2 bg-gray-100">My Avatar</h2>
+                <ImageUploader onSelect={handleAvatarSelect} initialUrl={avatarUrl} />
               </section>
-              {/* Bio */}
+              {}
               <section className="mb-6">
-                <EditableText label="自我介紹" value={bio} onChange={setBio} />
+                <EditableText
+                  label="Title"
+                  value={bioTitle}
+                  onChange={(v) => setBioTitle(v)}
+                  fieldKey="bioTitle"
+                  maxLength={30}
+                  minRows={1}
+                />
+                <div className="mb-6"></div>
+
+                <EditableText
+                  label="Introduction"
+                  value={bio}
+                  onChange={(v) => setBio(v)}
+                  fieldKey="bio"
+                  maxLength={500}
+                  minRows={4}
+                />
               </section>
               {/* Links */}
               <section className="mb-6">
-                <h2 className="text-sm text-center text-gray-400 font-semibold mb-2 bg-gray-100">我的連結</h2>
+                <h2 className="text-sm text-center !text-gray-600 font-semibold mb-2 bg-gray-100">My Links</h2>
                 <AddPlatformCard onAdd={(nl) => setLinks([...links, nl])} />
                 <SortableLinkList
                   links={links}
@@ -92,7 +122,13 @@ export default function MobileDashboard({
           </div>
         ) : (
           <PreviewCard
-            profile={{ avatarUrl, introduction: bio, links, siteID }}
+            profile={{
+              avatarUrl,
+              bioTitle,
+              introduction: bio,
+              links,
+              siteID,
+            }}
             template={template ?? undefined}
           />
         )}
@@ -109,7 +145,7 @@ export default function MobileDashboard({
     }`}
   >
     <PencilLine className="h-6 w-6" />
-    編輯
+    Edit
   </button>
   <button
     onClick={() => setTab('preview')}
@@ -120,7 +156,7 @@ export default function MobileDashboard({
     }`}
   >
     <Eye className="h-6 w-6" />   
-    預覽
+    Preview
   </button>
 </nav>
 </div>

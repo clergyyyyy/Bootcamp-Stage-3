@@ -3,56 +3,69 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import {
+  collection, query, where, limit, getDocs,
+  doc, getDoc,
+} from 'firebase/firestore';
 import TemplateLayout, { ProfileData } from '../components/TemplateLayout';
 import { Template } from '@/types/Template';
+import { buildLinkItems } from '@/utils/linkBuilder';
 
+/* ---------- page component --------------------------------------- */
 export default function PublicProfilePage() {
-  const { siteID } = useParams();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const { siteID } = useParams<{ siteID: string }>();
+  const [profile,  setProfile]  = useState<ProfileData | null>(null);
   const [template, setTemplate] = useState<Template | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
     if (!siteID) return;
 
     (async () => {
-      const q = query(collection(db, 'profiles'), where('siteID', '==', siteID));
-      const snap = await getDocs(q);
+      try {
+        /* profile -------------------------------------------------- */
+        const q = query(
+          collection(db, 'profiles'),
+          where('siteID', '==', siteID),
+          limit(1),
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) return setLoading(false);
 
-      if (!snap.empty) {
-      const raw = snap.docs[0].data();
+        const raw = snap.docs[0].data();
+        const { links, remainingSocials } = buildLinkItems(raw.links, raw.socialLinks);
 
-      if (!raw.siteID) {
-        console.warn('[Warn] 此 profile 缺少 siteID');
+        const profileData: ProfileData = {
+          siteID: raw.siteID,
+          avatarUrl: raw.avatarUrl,
+          bioTitle: raw.bioTitle,
+          bio: raw.bio,
+          introduction: raw.bio,
+          socialLinks: remainingSocials,   // **已去掉重複**
+          links,                           // button/iframe 區塊
+        };
+        setProfile(profileData);
+
+        /* template ------------------------------------------------- */
+        const tplSnap = await getDoc(doc(db, 'templates', raw.template || 'default'));
+        setTemplate(
+          tplSnap.exists() ? (tplSnap.data() as Template) : {
+            name: 'default',
+            templateEngName: 'default',
+            color: {
+              fontPrimary: '#000',
+              fontSecondary: '#666',
+              buttonPrimary: '#3B82F6',
+              buttonSecondary: '#60A5FA',
+            },
+            border: { radius: 8, style: 'solid' },
+          },
+        );
+      } catch (err) {
+        console.error('❌ 載入 profile 發生錯誤:', err);
+      } finally {
         setLoading(false);
-        return;
       }
-
-  const profileData: ProfileData = {
-    siteID: raw.siteID,
-    avatarUrl: raw.avatarUrl,
-    bioTitle: raw.bioTitle,
-    bio: raw.bio,
-    socialLinks: raw.socialLinks || {},
-    links: raw.links || [],
-  };
-  setProfile(profileData);
-
-        // 取得對應 template
-        const templateName = raw.template || 'default';
-        const templateSnap = await getDoc(doc(db, 'templates', templateName));
-
-        if (templateSnap.exists()) {
-          setTemplate(templateSnap.data() as Template);
-        } else {
-          console.warn('[Warn] 找不到 template:', templateName);
-        }
-      } else {
-        console.warn('[Warn] 找不到 profile 對應 siteID:', siteID);
-      }
-
-      setLoading(false);
     })();
   }, [siteID]);
 
@@ -85,8 +98,21 @@ export default function PublicProfilePage() {
   }
 
   /* ---------- 狀態檢查 ---------- */
-  if (!profile) return <p className="p-6 text-red-500">找不到此個人站</p>;
-  if (!template) return <p className="p-6 text-red-500">找不到樣板資料</p>;
+  if (!profile) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="p-6 text-red-500">找不到此個人站</p>
+      </div>
+    );
+  }
+  
+  if (!template) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="p-6 text-red-500">找不到樣板資料</p>
+      </div>
+    );
+  }
 
   /* ---------- 成功渲染 ---------- */
   return (

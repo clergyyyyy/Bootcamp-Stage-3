@@ -6,46 +6,36 @@ import { db } from '@/lib/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Image from 'next/image';
 
-export default function ImageUploader({ onUpload }: { onUpload: (url: string) => void }) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+type Props = {
+  /** 暫存選中的檔案；若想「移除頭貼」可傳 null */
+  onSelect: (file: File | null) => void;
+  /** 現存 avatarUrl（從父層帶入即可，不強制） */
+  initialUrl?: string;
+};
+
+export default function ImageUploader({ onSelect, initialUrl }: Props) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(initialUrl ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /* ------- 若使用者已有上傳過頭貼，先抓一次 Firestore ------- */
   useEffect(() => {
+    if (initialUrl) return; // 父層已給 URL，跳過抓取
     const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
       const snap = await getDoc(doc(db, 'profiles', user.uid));
       const data = snap.data();
       if (data?.avatarUrl) setPreviewUrl(data.avatarUrl);
     });
-    return () => unsubscribe();
-  }, []);
+    return () => unsub();
+  }, [initialUrl]);
 
-  const uploadFile = async (file: File) => {
-    try {
-      const apiKey = '799956b901b3d647e5dc198601d9040d';
-      const form = new FormData();
-      form.append('image', file);
-
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: 'POST',
-        body: form,
-      });
-      const json = await res.json();
-      const url = json.data.url;
-      onUpload(url);              // ✅ 使用 onUpload
-    } catch (err) {
-      console.error('圖片上傳失敗', err);
-      alert('圖片上傳失敗，請稍後再試');
-    }
-  };
-
-  /* 選檔：預覽 + 自動上傳 ------------------- */
-  const handlePreview = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* ------- 選檔：只做預覽與回傳 File ------- */
+  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPreviewUrl(URL.createObjectURL(file));
-    uploadFile(file);
+    onSelect(file);
   };
 
   return (
@@ -54,7 +44,7 @@ export default function ImageUploader({ onUpload }: { onUpload: (url: string) =>
         <div className="relative w-32 h-32 rounded-full border border-gray-300 p-[2px]">
           <Image
             src={previewUrl}
-            alt="預覽圖"
+            alt="頭貼預覽"
             fill
             sizes="128px"
             className="object-cover rounded-full"
@@ -62,12 +52,12 @@ export default function ImageUploader({ onUpload }: { onUpload: (url: string) =>
         </div>
       )}
 
-      {/* 隱藏原生 input */}
+      {}
       <input
+        ref={fileInputRef}
         type="file"
         accept="image/*"
-        onChange={handlePreview}
-        ref={fileInputRef}
+        onChange={handleSelect}
         className="hidden"
       />
 
