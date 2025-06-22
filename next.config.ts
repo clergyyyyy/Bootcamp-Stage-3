@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: ['i.ibb.co'],
+    domains:['img.reservoir.tools',
+    'i.ibb.co']
   },
 };
 

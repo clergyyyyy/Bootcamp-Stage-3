@@ -6,7 +6,6 @@ import { db } from '@/lib/firebase';
 import type { FormData } from './OnboardingLayout';
 import Image from 'next/image';
 
-
 type Props = {
   formData: FormData;
   setFormData: React.Dispatch<React.SetStateAction<FormData>>;
@@ -25,11 +24,10 @@ function InlineTextarea({
   const ref = useRef<HTMLDivElement>(null);
 
   const finish = useCallback(() => {
-  setEditing(false);
-  if (ref.current) onChange(ref.current.innerText.trim());
-}, [onChange]);
+    setEditing(false);
+    if (ref.current) onChange(ref.current.innerText.trim());
+  }, [onChange]);
 
-  /* 監聽點擊外部 → 結束編輯 */
   useEffect(() => {
     if (!editing) return;
     const handler = (e: MouseEvent) => {
@@ -39,7 +37,6 @@ function InlineTextarea({
     return () => document.removeEventListener('mousedown', handler);
   }, [editing, finish]);
 
-  /* 鍵盤：Shift+Enter 換行；Enter 儲存並退出 */
   const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -83,16 +80,24 @@ function InlineTextarea({
 export default function StepInputSelfIntro({
   formData,
   setFormData,
-}: Omit<Props, 'onNext'>) { 
+}: Omit<Props, 'onNext'>) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* ---------- 選檔（僅暫存＋本地預覽） ---------- */
+  // ⭐ 釋放舊的 blob URL
+  useEffect(() => {
+    return () => {
+      if (formData.avatarUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(formData.avatarUrl);
+      }
+    };
+  }, [formData.avatarUrl]);
+
   const handleSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 暫存在 formData，父層 Submit 時再呼叫 uploadToImgbb(file)
-    setFormData(prev => ({ ...prev, avatarFile: file }));
+    const previewUrl = URL.createObjectURL(file);
+    setFormData(prev => ({ ...prev, avatarFile: file, avatarUrl: previewUrl }));
   };
 
   const handleGenerateAI = async () => {
@@ -103,23 +108,21 @@ export default function StepInputSelfIntro({
     setFormData(prev => ({ ...prev, bio: random.slice(0, 80) }));
   };
 
-  
-
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Set FanLink Title and Introduction</h1>
 
       <div className="flex flex-col items-center gap-3">
         {formData.avatarUrl ? (
-        <div className="relative w-32 h-32">
-          <Image
-            src={formData.avatarUrl}
-            alt="預覽圖"
-            fill
-            sizes="128px"
-            className="object-cover rounded-full"
-          />
-        </div>
+          <div className="relative w-32 h-32">
+            <Image
+              src={formData.avatarUrl}
+              alt="預覽圖"
+              fill
+              sizes="128px"
+              className="object-cover rounded-full"
+            />
+          </div>
         ) : (
           <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
             No Avatar
@@ -167,7 +170,6 @@ export default function StepInputSelfIntro({
         </div>
       </div>
 
-      {/* AI button */}
       <button
         type="button"
         className="bg-secondary text-l text-white px-2 py-2 mb-16 rounded hover:bg-secondary/90"
@@ -176,6 +178,5 @@ export default function StepInputSelfIntro({
         Generate with AI
       </button>
     </div>
-    
   );
 }

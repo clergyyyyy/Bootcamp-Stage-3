@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Template } from '@/types/Template';
-import { LinkItem } from '@/types/link';
+import type { UnifiedLinkItem, ObjektNFT } from '@/types/unified-link';
 import Image from 'next/image';
 
 type SocialLinks = Record<string, string>;
@@ -15,7 +15,7 @@ export type ProfileData = {
   bio?: string;
   introduction?: string; 
   socialLinks?: SocialLinks;  
-  links: LinkItem[];          
+  links: UnifiedLinkItem[];
   legacyLinks?: LegacyLinkItem[]; 
   youtubeUrl?: string;       
   spotifyUrl?: string;       
@@ -75,6 +75,164 @@ const getSpotifyEmbedUrl = (url: string): string | null => {
   }
 };
 
+// Objekt NFT 排版計算函數
+const calculateObjektLayout = (objektCount: number): { rows: number[][]; maxDisplay: number } => {
+  // 最多顯示 24 個 NFT（8排 x 3個）
+  const maxDisplay = Math.min(objektCount, 24);
+  
+  if (maxDisplay <= 3) {
+    // 1-3 個：一排顯示
+    return { rows: [Array.from({ length: maxDisplay }, (_, i) => i)], maxDisplay };
+  } else if (maxDisplay <= 6) {
+    // 4-6 個：兩排顯示
+    const firstRowCount = Math.ceil(maxDisplay / 2);
+    const secondRowCount = maxDisplay - firstRowCount;
+    
+    return {
+      rows: [
+        Array.from({ length: firstRowCount }, (_, i) => i),
+        Array.from({ length: secondRowCount }, (_, i) => i + firstRowCount)
+      ],
+      maxDisplay
+    };
+  } else {
+    // 7+ 個：每排最多 3 個
+    const rows: number[][] = [];
+    for (let i = 0; i < maxDisplay; i += 3) {
+      const rowIndices = Array.from(
+        { length: Math.min(3, maxDisplay - i) },
+        (_, j) => i + j
+      );
+      rows.push(rowIndices);
+    }
+    
+    return { rows, maxDisplay };
+  }
+};
+
+// Objekt NFT 展示組件（更新為響應式版本）
+const ObjektDisplay = ({ 
+  objekts, 
+  //title, 
+  template 
+}: { 
+  objekts: ObjektNFT[]; 
+  //title?: string; 
+  template: Template 
+}) => {
+  if (!objekts || objekts.length === 0) return null;
+
+  const { rows, maxDisplay } = calculateObjektLayout(objekts.length);
+  const displayObjekts = objekts.slice(0, maxDisplay);
+
+  return (
+    <div
+      className="w-full max-w-full px-4 py-4 transition-all duration-200 overflow-hidden"
+      style={{
+        backgroundColor: template.color.buttonPrimary,
+        borderRadius: `${template.border.radius}px`,
+        borderStyle: template.border.style,
+        borderWidth: template.border.style === 'none' ? '0px' : '1px',
+        borderColor: template.color.fontSecondary,
+      }}
+    >
+      {/* 標題（目前註解掉） */}
+      {/* title && title.trim() && (
+        <h3
+          className="text-sm font-semibold mb-3 text-center"
+          style={{ color: template.color.fontPrimary }}
+        >
+          {title}
+        </h3>
+      ) */}
+
+      {/* NFT 網格 - 響應式容器 */}
+      <div className="w-full max-w-full">
+        <div className="space-y-2">
+          {rows.map((rowIndices, rowIndex) => {
+            const itemsInRow = rowIndices.length;
+            
+            return (
+              <div 
+                key={rowIndex} 
+                className={`flex gap-2 w-full ${
+                  itemsInRow === 1 ? 'justify-center' :
+                  itemsInRow === 2 ? 'justify-center' :
+                  'justify-center'
+                }`}
+              >
+                {rowIndices.map((objektIndex) => {
+                  const objekt = displayObjekts[objektIndex];
+                  if (!objekt) return null;
+
+                  return (
+                    <div
+                      key={objekt.id}
+                      className="relative group flex-shrink-0 transition-transform duration-200 hover:scale-105"
+                      style={{
+                        // 使用 CSS 響應式尺寸而非固定像素
+                        width: itemsInRow === 1 ? 'min(200px, 33vw)' :
+                               itemsInRow === 2 ? 'min(160px, 28vw)' :
+                               'min(120px, 25vw)',
+                        aspectRatio: '1083 / 1673', // 保持原始比例
+                        maxWidth: '100%',
+                      }}
+                    >
+                    <Image
+                      src={objekt.image}
+                      alt={objekt.name}
+                      fill
+                      sizes="(max-width: 600px) 33vw, 120px"
+                      className="w-full h-full object-cover rounded-lg border-2 border-white shadow-md"
+                      style={{
+                        borderRadius: `${Math.max(4, template.border.radius / 2)}px`,
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                      
+                      {/* Hover 顯示名稱 */}
+                      <div 
+                        className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg"
+                        style={{
+                          borderRadius: `${Math.max(4, template.border.radius / 2)}px`,
+                        }}
+                      >
+                        <span 
+                          className="text-white text-xs font-medium text-center px-1 leading-tight"
+                          style={{
+                            fontSize: itemsInRow === 3 ? '10px' : itemsInRow === 2 ? '11px' : '12px',
+                            lineHeight: '1.2',
+                          }}
+                        >
+                          {objekt.name}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 顯示總數（如果有更多未顯示的 NFT） */}
+      {objekts.length > maxDisplay && (
+        <div className="mt-3 text-center">
+          <span
+            className="text-xs opacity-75"
+            style={{ color: template.color.fontSecondary }}
+          >
+            顯示 {maxDisplay} / {objekts.length} 個 Objekt
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function TemplateLayout({
   profile,
   template,
@@ -95,8 +253,8 @@ export default function TemplateLayout({
   if (!template) return <div className="p-6 text-red-500">尚未選擇樣板</div>;
 
   // 處理連結資料：統一使用 profile.links
-  const processLinks = (): LinkItem[] => {
-    const allLinks: LinkItem[] = [];
+  const processLinks = (): UnifiedLinkItem[] => {
+    const allLinks: UnifiedLinkItem[] = [];
     
     if (profile.links && Array.isArray(profile.links)) {
       allLinks.push(...profile.links);
@@ -112,6 +270,8 @@ export default function TemplateLayout({
             type: 'social',
             platform,
             url,
+            title: platform,
+            order: 999,
           });
         }
       });
@@ -123,8 +283,10 @@ export default function TemplateLayout({
         allLinks.push({
           id: `custom-${index}-legacy`,
           type: 'custom',
-          platform: link.title, // 舊格式使用 title 作為 platform
+          platform: link.title,
           url: link.url,
+          title: link.title,
+          order: 999 + index,
         });
       });
     }
@@ -136,6 +298,8 @@ export default function TemplateLayout({
         type: 'youtube',
         platform: 'YouTube',
         url: profile.youtubeUrl,
+        title: 'YouTube',
+        order: 998,
       });
     }
 
@@ -146,8 +310,13 @@ export default function TemplateLayout({
         type: 'spotify',
         platform: 'Spotify',
         url: profile.spotifyUrl,
+        title: 'Spotify',
+        order: 997,
       });
     }
+
+    // 根據 order 排序
+    allLinks.sort((a, b) => (a.order || 0) - (b.order || 0));
 
     console.log('🔧 處理後的所有連結:', allLinks);
     return allLinks;
@@ -196,7 +365,7 @@ export default function TemplateLayout({
             {(profile.bio || profile.introduction) && (
               <div id="profile-description" className="mt-1 px-6">
               <h2
-                className="text-center text-sm whitespace-pre-line"  // ← 加這段
+                className="text-center text-sm whitespace-pre-line"
                 style={{ color: color.fontSecondary }}
               >
                 {profile.bio || profile.introduction}
@@ -211,13 +380,97 @@ export default function TemplateLayout({
               {allLinks.map((linkItem) => {
                 console.log('🎬 渲染連結項目:', linkItem);
 
+                // Objekt NFT 展示
+                if (linkItem.type === 'objekt') {
+                  const objektItem = linkItem as UnifiedLinkItem & { type: 'objekt'; objekts: ObjektNFT[] };
+                  
+                  console.log('🎴 Objekt NFT 資料:', { 
+                    id: linkItem.id, 
+                    title: linkItem.title, 
+                    objektsCount: objektItem.objekts?.length || 0,
+                    objekts: objektItem.objekts
+                  });
+                  
+                  // 檢查是否有有效的 Objekt 資料
+                  if (!objektItem.objekts || !Array.isArray(objektItem.objekts) || objektItem.objekts.length === 0) {
+                    console.warn('⚠️ Objekt 項目缺少有效的 objekts 資料:', linkItem);
+                    return null;
+                  }
+
+                  return (
+                    <ObjektDisplay
+                      key={linkItem.id}
+                      objekts={objektItem.objekts}
+                      //title={linkItem.title}
+                      template={template}
+                    />
+                  );
+                }
+
+                // 文字方塊
+                if (linkItem.type === 'text') {
+                  // 安全的類型檢查和內容提取
+                  const textItem = linkItem as UnifiedLinkItem & { type: 'text'; content: string };
+                  const textContent = textItem.content;
+                  const textTitle = linkItem.title;
+                  
+                  console.log('📝 文字方塊資料:', { 
+                    id: linkItem.id, 
+                    title: textTitle, 
+                    content: textContent,
+                    contentLength: textContent?.length 
+                  });
+                  
+                  // 如果沒有內容，就不渲染
+                  if (!textContent || typeof textContent !== 'string' || !textContent.trim()) {
+                    console.warn('⚠️ 文字方塊缺少內容:', linkItem);
+                    return null;
+                  }
+                  
+                  return (
+                    <div
+                      key={linkItem.id}
+                      className="px-4 py-3 text-left transition-all duration-200"
+                      style={{
+                        backgroundColor: color.buttonPrimary,
+                        borderRadius: `${border.radius}px`,
+                        borderStyle: border.style,
+                        borderWidth: border.style === 'none' ? '0px' : '1px',
+                        borderColor: color.fontSecondary,
+                      }}
+                    >
+                      {/* 標題（如果有的話） */}
+                      {textTitle && textTitle.trim() && (
+                        <h3
+                          className="text-sm font-semibold mb-2"
+                          style={{ color: color.fontPrimary }}
+                        >
+                          {textTitle}
+                        </h3>
+                      )}
+                      
+                      {/* 內容 - 確保一定會顯示 */}
+                      <div
+                        className="text-sm whitespace-pre-line leading-relaxed"
+                        style={{ 
+                          color: color.fontSecondary,
+                          minHeight: '1.25rem', // 確保至少有一行的高度
+                        }}
+                      >
+                        {textContent}
+                      </div>
+                    </div>
+                  );
+                }
+
                 // YouTube 嵌入式播放器
                 if (linkItem.type === 'youtube') {
-                  const embedUrl = getYouTubeEmbedUrl(linkItem.url);
+                  const youtubeItem = linkItem as UnifiedLinkItem & { type: 'youtube'; url: string };
+                  const embedUrl = getYouTubeEmbedUrl(youtubeItem.url);
                   console.log('📺 YouTube 嵌入 URL:', embedUrl);
                   
                   if (!embedUrl) {
-                    console.warn('⚠️ YouTube URL 無法轉換:', linkItem.url);
+                    console.warn('⚠️ YouTube URL 無法轉換:', youtubeItem.url);
                     return null;
                   }
                   
@@ -240,11 +493,12 @@ export default function TemplateLayout({
 
                 // Spotify 嵌入式播放器
                 if (linkItem.type === 'spotify') {
-                  const embedUrl = getSpotifyEmbedUrl(linkItem.url);
+                  const spotifyItem = linkItem as UnifiedLinkItem & { type: 'spotify'; url: string };
+                  const embedUrl = getSpotifyEmbedUrl(spotifyItem.url);
                   console.log('🎵 Spotify 嵌入 URL:', embedUrl);
                   
                   if (!embedUrl) {
-                    console.warn('⚠️ Spotify URL 無法轉換:', linkItem.url);
+                    console.warn('⚠️ Spotify URL 無法轉換:', spotifyItem.url);
                     return null;
                   }
                   
@@ -255,9 +509,9 @@ export default function TemplateLayout({
                         width="100%"
                         height="352"
                         frameBorder="0"
-                        allowTransparency={true}
                         allow="encrypted-media"
                         title="Spotify player"
+                        className="border-0 bg-transparent"
                         style={{
                           borderRadius: `${border.radius}px`,
                         }}
@@ -268,8 +522,9 @@ export default function TemplateLayout({
 
                 // 社群平台按鈕
                 if (linkItem.type === 'social') {
-                  // 修正：檢查 platform 是否存在且有對應的圖標
-                  const platformName = linkItem.platform;
+                  const socialItem = linkItem as UnifiedLinkItem & { type: 'social'; platform: string; url: string };
+                  const platformName = socialItem.platform;
+                  
                   if (!platformName) {
                     console.warn('⚠️ 社群連結缺少 platform:', linkItem);
                     return null;
@@ -278,7 +533,7 @@ export default function TemplateLayout({
                   return (
                     <a
                       key={linkItem.id}
-                      href={linkItem.url}
+                      href={socialItem.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-3 transition hover:scale-[1.02]"
@@ -307,12 +562,13 @@ export default function TemplateLayout({
 
                 // 自訂連結按鈕
                 if (linkItem.type === 'custom') {
-                  const displayText = linkItem.platform || '自訂連結'; // 提供回退文字
+                  const customItem = linkItem as UnifiedLinkItem & { type: 'custom'; platform?: string; url: string };
+                  const displayText = customItem.platform || customItem.title || '自訂連結';
                   
                   return (
                     <a
                       key={linkItem.id}
-                      href={linkItem.url}
+                      href={customItem.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block px-4 py-3 text-center transition hover:scale-[1.02]"

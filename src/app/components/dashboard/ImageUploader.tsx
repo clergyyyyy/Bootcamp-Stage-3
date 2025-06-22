@@ -7,9 +7,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Image from 'next/image';
 
 type Props = {
-  /** 暫存選中的檔案；若想「移除頭貼」可傳 null */
   onSelect: (file: File | null) => void;
-  /** 現存 avatarUrl（從父層帶入即可，不強制） */
   initialUrl?: string;
 };
 
@@ -19,7 +17,7 @@ export default function ImageUploader({ onSelect, initialUrl }: Props) {
 
   /* ------- 若使用者已有上傳過頭貼，先抓一次 Firestore ------- */
   useEffect(() => {
-    if (initialUrl) return; // 父層已給 URL，跳過抓取
+    if (initialUrl) return;
     const auth = getAuth();
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
@@ -30,7 +28,7 @@ export default function ImageUploader({ onSelect, initialUrl }: Props) {
     return () => unsub();
   }, [initialUrl]);
 
-  /* ------- 選檔：只做預覽與回傳 File ------- */
+  /* ------- 預覽與回傳 File ------- */
   const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;

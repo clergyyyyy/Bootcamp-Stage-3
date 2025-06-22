@@ -94,7 +94,7 @@ export default function StepInputLink({
   const getPlatformPlaceholder = (platform: string) => {
   const lower = platform.toLowerCase();
   if (lower === 'x') return 'https://x.com/yourname';
-  if (lower === 'threads') return 'https://www.threads.net/yourname';
+  if (lower === 'threads') return 'https://www.threads.com/yourname';
   if (lower === 'line') return 'https://page.line.me/yourname';
   if (lower === 'shopee') return 'https://shopee.tw/yourname';
   if (lower === 'tiktok') return 'https://www.tiktok.com/@yourname';

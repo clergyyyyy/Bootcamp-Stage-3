@@ -1,27 +1,82 @@
 'use client';
 
-import { useState } from 'react';
-import { signOut } from 'firebase/auth';
-import { ChevronDown } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { signOut, getAuth } from 'firebase/auth';
+import { ChevronDown, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { doc, updateDoc } from 'firebase/firestore';
 
 import ImageUploader from './ImageUploader';
 import { EditableText } from './EditableText';
 import SortableLinkList from './SortableLinkList';
 import PreviewCard from './PreviewCard';
-import { Template } from '@/types/Template';
-import { LinkItem } from '@/types/link';
-import { getAuth } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import AddPlatformCard from './AddPlatformCard';
 import { uploadToImgbb } from '@/lib/uploadToImgbb';
-import { Profile } from '@/types/profile';
+import { db } from '@/lib/firebase';
+import { Template } from '@/types/Template';
+import type { UnifiedLinkItem, ObjektNFT } from '@/types/unified-link';
+
+/* ------------------------------------------------------------------
+ * type helpers
+ * ------------------------------------------------------------------ */
+
+// 具有基礎 id / order 欄位的交集型別
+interface BaseMappedLink {
+  id: string;
+  order: number;
+}
+
+type TextLink   = UnifiedLinkItem & { type: 'text';   content?: string };
+type ObjektLink = UnifiedLinkItem & { type: 'objekt'; objekts?: ObjektNFT[] };
+type OtherLink  = UnifiedLinkItem & {
+  type: Exclude<UnifiedLinkItem['type'], 'text' | 'objekt'>;
+  platform?: string;
+  url?: string;
+};
+
+type AnyLink = TextLink | ObjektLink | OtherLink;
+
+/* ------------------------------------------------------------------
+ * util: deep‑clean undefined / null (保留 Array 原樣)
+ * ------------------------------------------------------------------ */
+
+const cleanObject = <T extends Record<string, unknown>>(obj: T): T => {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      out[k] = v;
+    } else if (typeof v === 'object') {
+      const nested = cleanObject(v as Record<string, unknown>);
+      if (Object.keys(nested).length) out[k] = nested;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out as T;
+};
+
+const generateUid = (prefix: string) =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const dedupeIds = (items: UnifiedLinkItem[]): UnifiedLinkItem[] => {
+  const seen = new Set<string>();
+  return items.map((l, idx) => {
+    const id = !l.id || seen.has(l.id) ? generateUid(l.type) : l.id;
+    seen.add(id);
+    return { ...l, id, order: idx };
+  });
+};
+
+/* ------------------------------------------------------------------
+ * component
+ * ------------------------------------------------------------------ */
 
 export default function DashboardLayout({
   avatarUrl,
   setAvatarUrl,
-  bioTitle, 
-  setBioTitle, 
+  bioTitle,
+  setBioTitle,
   bio,
   setBio,
   links,
@@ -35,121 +90,185 @@ export default function DashboardLayout({
   bioTitle: string;
   setBioTitle: (v: string) => void;
   bio: string;
-  setBio: (bio: string) => void;
-  links: LinkItem[];
-  setLinks: (links: LinkItem[]) => void;
+  setBio: (v: string) => void;
+  links: UnifiedLinkItem[];
+  setLinks: (l: UnifiedLinkItem[]) => void;
   siteID: string;
   template: Template | null;
   loading: boolean;
 }) {
+  /* ------------------------- local states ------------------------ */
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [dropdownAnimating, setDropdownAnimating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
+  /* ------------------------- export image ------------------------ */
+  const handleExportImage = async () => {
+    if (!previewRef.current) return alert('找不到預覽區域');
+
+    setIsExporting(true);
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      const canvas = await html2canvas(previewRef.current, {
+        useCORS: true,
+        allowTaint: true,
+      });
+      canvas.toBlob((blob) => {
+        if (!blob) return alert('圖片生成失敗');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${siteID || 'fanlink'}-preview.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png', 0.95);
+    } catch (e) {
+      console.error(e);
+      alert('匯出失敗');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  /* ------------------------- save ------------------------ */
   const handleSave = async () => {
     const user = getAuth().currentUser;
-    if (!user) return alert('未登入，無法儲存');
-
-    let url = avatarUrl;
-    if (pendingFile) {
-      url = await uploadToImgbb(pendingFile);
-      setAvatarUrl(url);
-      setPendingFile(null);
-    } else {
-    }
-
-    const updateData: Partial<Profile> & { avatarUrl: string; links: LinkItem[]; template?: string } = {
-      bioTitle, 
-      introduction: bio,
-      siteID,
-      avatarUrl: url,
-      links,
-      ...(template?.templateEngName ? { template: template.templateEngName.toLowerCase() } : {}),
-    };
+    if (!user) return alert('未登入');
 
     try {
-      await updateDoc(doc(db, 'profiles', user.uid), updateData);
-      alert('✅ 已儲存成功！');
-    } catch {
-      alert('❌ 儲存失敗，請稍後再試');
+      let finalAvatar = avatarUrl;
+      if (pendingFile) {
+        finalAvatar = await uploadToImgbb(pendingFile);
+        setAvatarUrl(finalAvatar);
+        setPendingFile(null);
+      }
+
+      const validated: UnifiedLinkItem[] = links.map((l, i) => {
+        const base: BaseMappedLink = { id: l.id || `link-${i}`, order: i };
+
+        switch (l.type) {
+          case 'text': {
+            const t = l as TextLink;
+            return cleanObject({ ...base, ...t, content: t.content ?? '' });
+          }
+          case 'objekt': {
+            const o = l as ObjektLink;
+            return cleanObject({ ...base, ...o, objekts: o.objekts ?? [] });
+          }
+          default: {
+            const n = l as OtherLink;
+            return cleanObject({
+              ...base,
+              ...n,
+              platform: n.platform ?? '',
+              url: n.url ?? '',
+            });
+          }
+        }
+      });
+
+      const payload = cleanObject({
+        bioTitle: bioTitle || '',
+        introduction: bio || '',
+        siteID: siteID || '',
+        avatarUrl: finalAvatar,
+        links: validated,
+        template: template?.templateEngName?.toLowerCase() || 'default',
+        updatedAt: new Date().toISOString(),
+      });
+
+      await updateDoc(doc(db, 'profiles', user.uid), payload);
+      alert('✅ 已儲存成功');
+    } catch (e) {
+      console.error(e);
+      alert(`儲存失敗: ${(e as Error).message}`);
     }
   };
 
-  /** 既存 onSelect 傳進來的 callback */
-  const handleSelectFile = (file: File | null) => {
-    if (!file) return;
-    // 1. 暫存檔案（之後 Save 時上傳到 imgbb）
-    setPendingFile(file);
-    // 2. 產生本地 blob URL，立即給 PreviewCard
-    const localUrl = URL.createObjectURL(file);
-    setAvatarUrl(localUrl);
+  /* ------------------------- link ops ------------------------ */
+  const handleSelectFile = (f: File | null) => {
+    if (!f) return;
+    setPendingFile(f);
+    setAvatarUrl(URL.createObjectURL(f));
   };
 
-  const handleLogout = async () => {
+  const handleAddLink = (l: UnifiedLinkItem) => {
+    const newLink = cleanObject({
+      ...l,
+      id: l.id || generateUid(l.type),
+      order: links.length,
+    });
+    setLinks([...links, newLink]);
+  };
+
+  const handleUpdateUnifiedLink = (id: string, upd: Partial<UnifiedLinkItem>) => {
+    setLinks(
+      links.map((origin) => {
+        if (origin.id !== id) return origin;
+        const merged = { ...origin, ...upd } as AnyLink;
+
+        if (merged.type === 'text')
+          return cleanObject({ ...merged, content: merged.content ?? '' });
+        if (merged.type === 'objekt')
+          return cleanObject({ ...merged, objekts: merged.objekts ?? [] });
+        return cleanObject({
+          ...merged,
+          platform: merged.platform ?? '',
+          url: merged.url ?? '',
+        });
+      })
+    );
+  };
+
+  const handleRemoveLink = (id: string) => setLinks(links.filter((l) => l.id !== id));
+
+  const handleReorderUnifiedLinks = (order: UnifiedLinkItem[]) =>
+    setLinks(dedupeIds(order));
+
+  /* ------------------------- ui helpers ------------------------ */
+  const logout = async () => {
     try {
-      const auth = getAuth();
-      await signOut(auth);
+      await signOut(getAuth());
       setShowDropdown(false);
-      setIsAnimating(false);
+      setDropdownAnimating(false);
     } catch {
-      alert('登出失敗，請稍後再試');
+      alert('登出失敗');
     }
   };
 
+  /* ------------------------- dropdown animation ------------------------ */
   const toggleDropdown = () => {
     if (showDropdown) {
-      setIsAnimating(true);
+      setDropdownAnimating(true);
       setTimeout(() => {
         setShowDropdown(false);
-        setIsAnimating(false);
-      }, 150); 
+        setDropdownAnimating(false);
+      }, 140);
     } else {
       setShowDropdown(true);
     }
   };
 
-  const handleAddLink = (newLink: LinkItem) => {
-    setLinks([...links, newLink]);
-  };
-
-  const handleUpdateLink = (id: string, url: string) => {
-    setLinks(links.map((l) => (l.id === id ? { ...l, url } : l)));
-  };
-
-  const handleRemoveLink = (id: string) => {
-    setLinks(links.filter((l) => l.id !== id));
-  };
-
-  const handleDragEnd = (newOrder: LinkItem[]) => {
-    setLinks(newOrder);
-  };
-
+  /* ------------------------- JSX ------------------------ */
   return (
     <div className="flex h-screen overflow-hidden">
-      {}
-      <aside className="flex-shrink-0 w-[200px] bg-gray-100 p-4 border-r-2 border-gray-200">
-        <div className="flex justify-between items-center mb-4 relative">
+      {/* Sidebar */}
+      <aside className="w-[200px] flex-shrink-0 border-r-2 border-gray-200 bg-gray-100 p-4">
+        <div className="relative mb-4 flex items-center justify-between">
           <div className="font-bold">My Fanlink</div>
-          <button 
+          <button
             onClick={toggleDropdown}
-            className="p-1 !text-gray-700 hover:text-gray-900 cursor-pointer transition-colors"
+            className="cursor-pointer p-1 text-gray-700 transition-colors hover:text-gray-900"
           >
             <ChevronDown size={18} />
           </button>
-          
-          {}
           {showDropdown && (
-            <div 
-              className={`absolute top-full right-0 mt-2 w-32 bg-white !text-gray-700 rounded-lg shadow-lg border border-gray-200 z-50 transition-all duration-100 ${
-                isAnimating 
-                  ? 'opacity-0 scale-95 translate-y-[-8px]' 
-                  : 'opacity-100 scale-100 translate-y-0'
-              }`}
+            <div
+              className={`absolute right-0 top-full z-50 mt-2 w-32 rounded-lg border border-gray-200 bg-white text-gray-700 shadow-lg transition-all duration-100 ${dropdownAnimating ? 'translate-y-[-8px] scale-95 opacity-0' : 'translate-y-0 scale-100 opacity-100'}`}
             >
-              <button
-                onClick={handleLogout}
-                className="w-full px-4 py-2 text-left text-sm !text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-              >
+              <button onClick={logout} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50">
                 Log out
               </button>
             </div>
@@ -157,106 +276,104 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {}
-        <header className="flex justify-between items-center p-4 border-b-2 border-gray-200">
-          <h1 className="text-xl font-bold m-0">My Site</h1>
-          <button onClick={handleSave} className="bg-black text-white px-4 py-2 rounded">
-            Save
-          </button>
+      {/* Main */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Header */}
+        <header className="flex items-center justify-between border-b-2 border-gray-200 p-4">
+          <h1 className="m-0 text-xl font-bold">My Site</h1>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExportImage}
+              disabled={isExporting || loading}
+              className={`flex items-center gap-2 rounded px-4 py-2 transition-all duration-200 ${isExporting || loading ? 'cursor-not-allowed bg-gray-300 text-gray-500' : 'bg-blue-600 text-white hover:scale-105 hover:bg-blue-700'}`}
+            >
+              {isExporting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  <span>Export as Image</span>
+                </>
+              )}
+            </button>
+            <button onClick={handleSave} className="rounded bg-black px-4 py-2 text-white transition-colors duration-200 hover:bg-gray-800">
+              Save
+            </button>
+          </div>
         </header>
 
-        {}
-        <div className="flex flex-1 overflow-hidden flex-col lg:flex-row min-w-0">
-          {}
+        {/* Content */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden lg:flex-row">
+          {/* Edit panel */}
+          {/* Edit panel */}
           {loading ? (
             <main className="flex-1 lg:flex-[3_3_0%] min-w-0 p-6 space-y-6">
               <div className="h-40 rounded skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left" />
               <div className="h-20 rounded skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left" />
               {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-12 rounded skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left"
-                />
+                <div key={i} className="h-12 rounded skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left" />
               ))}
             </main>
           ) : (
             <main className="flex-1 lg:flex-[3_3_0%] min-w-0 p-6 overflow-auto">
-              {}
+              {/* Avatar */}
               <section className="mb-6">
-                <h2 className="text-sm text-center !text-gray-500 font-semibold mb-2 bg-gray-100">My Avatar</h2>
-                <ImageUploader
-                  onSelect={handleSelectFile}
-                  initialUrl={avatarUrl}
-                />
+                <h2 className="mb-2 bg-gray-100 text-center text-sm font-semibold !text-gray-500">My Avatar</h2>
+                <ImageUploader onSelect={handleSelectFile} initialUrl={avatarUrl} />
               </section>
-              
-              {}
+
+              {/* Bio */}
               <section className="mb-6">
                 <EditableText
                   label="Title"
                   value={bioTitle}
-                  onChange={(v) => setBioTitle(v)}
+                  onChange={setBioTitle}
                   fieldKey="bioTitle"
                   maxLength={30}
                   minRows={1}
                 />
-              <div className="mb-2"></div>
+                <div className="mb-2" />
                 <EditableText
                   label="Introduction"
                   value={bio}
-                  onChange={(v) => setBio(v)}
+                  onChange={setBio}
                   fieldKey="bio"
                   maxLength={500}
                   minRows={4}
                 />
               </section>
-              
-              {}
+
+              {/* Links */}
               <section className="mb-6">
-                <h2 className="text-sm text-center !text-gray-500 font-semibold mb-2 bg-gray-100">My Links</h2>
-                
+                <h2 className="mb-2 bg-gray-100 text-center text-sm font-semibold !text-gray-500">My Links</h2>
                 <AddPlatformCard onAdd={handleAddLink} />
-                
                 <SortableLinkList
-                  links={links}
-                  onUpdateLink={handleUpdateLink}
-                  onRemoveLink={handleRemoveLink}
-                  onDragEnd={handleDragEnd}
+                  unifiedLinks={links}
+                  onUpdateUnifiedLink={handleUpdateUnifiedLink}
+                  onRemoveUnifiedLink={handleRemoveLink}
+                  onReorderUnifiedLinks={handleReorderUnifiedLinks}
                 />
               </section>
             </main>
           )}
 
-          {}
-          {loading ? (
-            <aside className="flex-[2_2_0%] min-w-[360px] max-w-[600px] bg-gray-100 p-4 border-l-2 border-gray-200 min-h-0">
-              <div className="mx-auto max-w-[600px] space-y-6">
-                <div className="h-24 w-24 rounded-full skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left mx-auto" />
-                <div className="h-6 w-1/2 rounded skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left mx-auto" />
-                <div className="h-4 w-3/4 rounded skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left mx-auto" />
-                {[...Array(3)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-10 rounded skeleton animate-pulse bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 bg-[length:200%_100%] bg-left"
-                  />
-                ))}
-              </div>
-            </aside>
-          ) : (
-            <aside className="flex-[2_2_0%] min-w-[360px] max-w-[600px] bg-gray-100 border-l-2 border-gray-200 min-h-0 overflow-y-auto">
+          <aside className="flex-[2_2_0%] min-w-[360px] max-w-[600px] overflow-y-auto border-l-2 border-gray-200 bg-gray-100 lg:block">
+            <div ref={previewRef}>
               <PreviewCard
                 profile={{
-                  avatarUrl,
-                  bioTitle,
-                  introduction: bio,
+                  avatarUrl: avatarUrl || '',
+                  bioTitle: bioTitle || '',
+                  introduction: bio || '',
                   links,
-                  siteID,
+                  siteID: siteID || '',
                 }}
                 template={template || undefined}
               />
-            </aside>
-          )}
+            </div>
+          </aside>
         </div>
       </div>
     </div>

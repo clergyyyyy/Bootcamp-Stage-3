@@ -2,6 +2,7 @@
 
 #firebase
 /react-practice-44527-firebase-adminsdk-fbsvc-*.json
+/serviceAccountKey.json
 
 # dependencies
 /node_modules

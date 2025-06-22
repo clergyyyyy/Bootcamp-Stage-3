@@ -84,7 +84,6 @@ useEffect(() => {
     ) {
       e.preventDefault();
     }
-    // 其餘保持預設 (Enter 換行)
   };
 
   return (

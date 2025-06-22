@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import Image from 'next/image';
-import { Template } from '@/types/Template'; // 使用統一的 Template 類型
+import type { Template } from '@/types/Template';
 import type { Profile } from '@/types/profile';
+import type { UnifiedLinkItem, ObjektNFT } from '@/types/unified-link';
+import { isTextItem, isObjektItem, isLinkItem,} from '@/types/unified-link';
 
+/* ---------- static ---------- */
 const socialIcon: Record<string, string> = {
   Instagram: '/icons/instagram.svg',
   YouTube: '/icons/youtube.svg',
@@ -20,91 +23,365 @@ const socialIcon: Record<string, string> = {
   Facebook: '/icons/facebook.svg',
 };
 
+/* ---------- template fallback ---------- */
 const defaultTemplate: Template = {
   name: 'default',
   templateEngName: 'default',
+  bgImage: '',
+  fontFamily: 'Arial, sans-serif',
   color: {
-    fontPrimary: '#000000',
-    fontSecondary: '#666666',
+    fontPrimary: '#000',
+    fontSecondary: '#666',
     buttonPrimary: '#3B82F6',
     buttonSecondary: '#60A5FA',
   },
   border: { radius: 8, style: 'solid' },
 };
 
-// YouTube URL 轉換為嵌入式 URL 的函數
-const getYouTubeEmbedUrl = (url: string): string | null => {
-  try {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
-    ];
-    
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) {
-        return `https://www.youtube.com/embed/${match[1]}`;
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
+/* ---------- util: embed URL ---------- */
+const ytRx = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/]+)/;
+const spRx = /(?:open\.)?spotify\.com\/(track|album|playlist|artist)\/([A-Za-z0-9]+)/;
+
+const getYtEmbed = (u: string) =>
+  u.match(ytRx)?.[1] ? `https://www.youtube.com/embed/${u.match(ytRx)![1]}` : null;
+
+const getSpEmbed = (u: string) => {
+  const m = u.match(spRx);
+  return m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}` : null;
 };
 
-// Spotify URL 轉換為嵌入式 URL 的函數
-const getSpotifyEmbedUrl = (url: string): string | null => {
-  try {
-    const patterns = [
-      /spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/,
-      /open\.spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/
-    ];
-    
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) {
-        const [, type, id] = match;
-        return `https://open.spotify.com/embed/${type}/${id}`;
-      }
-    }
-    return null;
-  } catch {
-    return null;
+/* ---------- Objekt NFT 版面計算 ---------- */
+const calculateObjektLayout = (
+  objektCount: number,
+): { rows: number[][]; maxDisplay: number } => {
+  const maxDisplay = Math.min(objektCount, 24); // 最多 24 個
+  if (maxDisplay <= 3) {
+    return { rows: [Array.from({ length: maxDisplay }, (_, i) => i)], maxDisplay };
   }
+  if (maxDisplay <= 6) {
+    const first = Math.ceil(maxDisplay / 2);
+    return {
+      rows: [
+        Array.from({ length: first }, (_, i) => i),
+        Array.from({ length: maxDisplay - first }, (_, i) => i + first),
+      ],
+      maxDisplay,
+    };
+  }
+
+  const rows: number[][] = [];
+  for (let i = 0; i < maxDisplay; i += 3) {
+    rows.push(Array.from({ length: Math.min(3, maxDisplay - i) }, (_, j) => i + j));
+  }
+  return { rows, maxDisplay };
 };
 
+/* ---------- Objekt 顯示元件 ---------- */
+const ObjektDisplay = ({
+  objekts,
+  title,
+  template,
+}: {
+  objekts: ObjektNFT[];
+  title?: string;
+  template: Template;
+}) => {
+  console.log('Objekt title:', title);
+  if (!objekts?.length) return null;
+
+  const { rows, maxDisplay } = calculateObjektLayout(objekts.length);
+  const displayObjekts = objekts.slice(0, maxDisplay);
+
+  return (
+    <div
+      className="w-full max-w-full px-4 py-4 transition-all duration-200 overflow-hidden"
+      style={{
+        backgroundColor: template.color.buttonPrimary,
+        borderRadius: `${template.border.radius}px`,
+        borderStyle: template.border.style,
+        borderWidth: template.border.style === 'none' ? '0px' : '1px',
+        borderColor: template.color.fontSecondary,
+      }}
+    >
+      {/* NFT 網格 */}
+      <div className="w-full max-w-full">
+        <div className="space-y-2">
+          {rows.map((rowIndices, rowIndex) => {
+            const itemsInRow = rowIndices.length;
+            return (
+              <div
+                key={rowIndex}
+                className={`flex gap-2 w-full justify-center`}
+              >
+                {rowIndices.map((idx) => {
+                  const objekt = displayObjekts[idx];
+                  return (
+                    <div
+                      key={objekt.id}
+                      className="relative group flex-shrink-0 transition-transform duration-200 hover:scale-105"
+                      style={{
+                        width:
+                          itemsInRow === 1
+                            ? 'min(200px, 33vw)'
+                            : itemsInRow === 2
+                            ? 'min(160px, 28vw)'
+                            : 'min(120px, 25vw)',
+                        aspectRatio: '1083 / 1673',
+                      }}
+                    >
+                      <Image
+                        src={objekt.image}
+                        alt={objekt.name}
+                        fill
+                        sizes="(max-width:768px) 40vw, 120px"
+                        className="object-cover rounded-lg border-2 border-white shadow-md"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <div
+                        className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg"
+                        style={{ borderRadius: `${Math.max(4, template.border.radius / 2)}px` }}
+                      >
+                        <span
+                          className="text-white text-xs font-medium text-center px-1 leading-tight"
+                          style={{
+                            fontSize:
+                              itemsInRow === 3 ? '10px' : itemsInRow === 2 ? '11px' : '12px',
+                          }}
+                        >
+                          {objekt.name}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {objekts.length > maxDisplay && (
+        <div className="mt-3 text-center">
+          <span className="text-xs opacity-75" style={{ color: template.color.fontSecondary }}>
+            顯示 {maxDisplay} / {objekts.length} 個 Objekt
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ---------- 主要卡片元件 ---------- */
 export default function PreviewCard({
   profile,
   template,
 }: {
-profile: Partial<Profile>;
+  profile: Partial<Profile>;
   template?: Template;
 }) {
-  /* ---------------- local state ---------------- */
-  const [loadedTemplate, setLoadedTemplate] = useState<Template | null>(null);
-  const tpl: Template = loadedTemplate ?? template ?? defaultTemplate;
+  /* 載入 template */
+  const [loaded, setLoaded] = useState<Template | null>(null);
 
-  /* ---------------- fetch template ---------------- */
   useEffect(() => {
     if (!template && profile.templateKey) {
       (async () => {
         try {
-          const snap = await getDoc(doc(db, 'templates', profile.templateKey!));
-          if (snap.exists()) {
-            setLoadedTemplate(snap.data() as Template);
-          }
+const key = profile.templateKey as string; // 已在 if 條件中保證存在
+const ref = doc(db, 'templates', key);
+          const snap = await getDoc(ref);
+          if (snap.exists()) setLoaded(snap.data() as Template);
         } catch {
+          /* ignore */
         }
       })();
     }
   }, [template, profile.templateKey]);
 
-  /* ---------------- render ---------------- */
-  const { bgImage, fontFamily, color, border } = tpl;
+  const tpl = loaded ?? template ?? defaultTemplate;
+  const { color, border, bgImage, fontFamily } = tpl;
 
+  /* ---------- 去重 ---------- */
+
+const deduplicateLinks = (links: UnifiedLinkItem[] = []): UnifiedLinkItem[] => {
+  const seen   = new Set<string>();
+  const result: UnifiedLinkItem[] = [];
+
+  // 先按照 legacy 與 order 排序
+  const sorted = [...links].sort((a, b) => {
+    const aLegacy = a.id.includes('-legacy');
+    const bLegacy = b.id.includes('-legacy');
+    if (aLegacy !== bLegacy) return aLegacy ? 1 : -1;
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+
+  for (const link of sorted) {
+    let key: string;
+
+    if (isTextItem(link)) {
+      key = `text:${link.content.slice(0, 20)}`;
+    } else if (isObjektItem(link)) {
+      key = `objekt:${link.id}:${link.objekts.length}`;
+    } else if (isLinkItem(link)) {
+      // social / youtube / spotify / custom
+      key = `${link.type}:${(link.platform ?? '').toLowerCase()}:${link.url}`;
+    } else {
+      continue; // 不可能進來，但保險
+    }
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(link);
+    }
+  }
+
+  return result;
+};
+
+
+const processedLinks = deduplicateLinks(
+ (profile.links ?? []) as UnifiedLinkItem[],
+);
+
+  /* ---------- render helper ---------- */
+  const renderItem = (item: UnifiedLinkItem) => {
+    switch (item.type) {
+      case 'objekt': {
+        const objItem = item as Extract<UnifiedLinkItem, { type: 'objekt' }>;
+        if (!objItem.objekts?.length) return null;
+        return (
+          <ObjektDisplay
+            key={objItem.id}
+            objekts={objItem.objekts}
+            title={objItem.title}
+            template={tpl}
+          />
+        );
+      }
+
+      case 'text': {
+        const textItem = item as Extract<UnifiedLinkItem, { type: 'text' }>;
+        if (!textItem.content?.trim()) return null;
+        return (
+          <div
+            key={textItem.id}
+            className="px-4 py-3 text-left transition-all duration-200"
+            style={{
+              backgroundColor: color.buttonPrimary,
+              borderRadius: `${border.radius}px`,
+              borderStyle: border.style,
+              borderWidth: border.style === 'none' ? '0px' : '1px',
+              borderColor: color.fontSecondary,
+            }}
+          >
+            {textItem.title?.trim() && (
+              <h3 className="text-sm font-semibold mb-2" style={{ color: color.fontPrimary }}>
+                {textItem.title}
+              </h3>
+            )}
+            <div
+              className="text-sm whitespace-pre-line leading-relaxed"
+              style={{ color: color.fontSecondary, minHeight: '1.25rem' }}
+            >
+              {textItem.content}
+            </div>
+          </div>
+        );
+      }
+
+      case 'youtube': {
+        const src = getYtEmbed(item.url);
+        if (!src) return null;
+        return (
+          <div key={item.id} className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden shadow-lg">
+            <iframe
+              src={src}
+              className="absolute top-0 left-0 w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              style={{ borderRadius: `${border.radius}px` }}
+              title="YouTube video player"
+            />
+          </div>
+        );
+      }
+
+      case 'spotify': {
+        const src = getSpEmbed(item.url);
+        if (!src) return null;
+        return (
+          <div key={item.id} className="w-full rounded-lg overflow-hidden shadow-lg">
+            <iframe
+              src={src}
+              width="100%"
+              height="352"
+              frameBorder="0"
+              allow="encrypted-media"
+              title="Spotify player"
+              className="border-0 bg-transparent"
+              style={{ borderRadius: `${border.radius}px` }}
+            />
+          </div>
+        );
+      }
+
+      case 'social':
+        return (
+          <a
+            key={item.id}
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-3 transition hover:scale-[1.02]"
+            style={{
+              backgroundColor: color.buttonSecondary,
+              borderRadius: `${border.radius}px`,
+              borderStyle: border.style,
+              color: color.fontPrimary,
+            }}
+          >
+            {item.platform && socialIcon[item.platform] && (
+              <Image
+                src={socialIcon[item.platform]}
+                alt={item.platform}
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
+            )}
+            <span className="text-sm">{item.platform}</span>
+          </a>
+        );
+
+      case 'custom':
+        return (
+          <a
+            key={item.id}
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block px-4 py-3 text-center transition hover:scale-[1.02]"
+            style={{
+              backgroundColor: color.buttonPrimary,
+              borderRadius: `${border.radius}px`,
+              borderStyle: border.style,
+              color: '#fff',
+            }}
+          >
+            {item.title || item.platform || '自訂連結'}
+          </a>
+        );
+
+      default:
+        return null; // 不明類型直接忽略
+    }
+  };
+
+  /* ---------- JSX ---------- */
   return (
     <div
-      className="w-full min-h-full flex flex-col justify-between px-4 pb-8 pt-16 backdrop-blur-sm"
+      className="w-full min-h-full flex flex-col justify-between px-4 pb-8 pt-16 backdrop-blur-md"
       style={{
         backgroundImage: bgImage ? `url(${bgImage})` : undefined,
         backgroundSize: 'cover',
@@ -112,11 +389,12 @@ profile: Partial<Profile>;
         fontFamily,
       }}
     >
-      <div className="mx-auto w-full max-w-[600px] space-y-6 text-center">
-        {/* Avatar + Title + Bio */}
+      {/* header */}
+      <div className="mx-auto max-w-[600px] space-y-6 text-center">
+        {/* avatar / title / intro */}
         <div className="flex flex-col items-center space-y-2">
           {profile.avatarUrl ? (
-            <div className="relative w-24 h-24 rounded-full overflow-hidden">
+            <div className="mb-4 relative" style={{ width: 96, height: 96 }}>
               <Image
                 src={profile.avatarUrl}
                 alt="avatar"
@@ -129,158 +407,30 @@ profile: Partial<Profile>;
             <div className="h-24 w-24 rounded-full bg-gray-200" />
           )}
 
-          {profile.siteID && (
-            <h1 className="text-lg font-bold" style={{ color: color.fontPrimary }}>
+          {profile.bioTitle && (
+            <h1 className="text-lg font-bold leading-[1.5]" style={{ color: color.fontPrimary }}>
               {profile.bioTitle}
             </h1>
           )}
 
           {profile.introduction && (
-            <p className="text-sm px-6" style={{ color: color.fontSecondary }}>
+            <p
+              className="text-sm px-6 whitespace-pre-line"
+              style={{ color: color.fontSecondary }}
+            >
               {profile.introduction}
             </p>
           )}
         </div>
 
-        {/* 連結區塊 */}
-        {profile.links && profile.links.length > 0 && (
-          <div className="flex flex-col gap-4">
-            {profile.links.map((linkItem) => {
-
-              // 如果沒有 type 屬性，根據 platform 推斷類型
-              let linkType = linkItem.type;
-              if (!linkType) {
-                const platform = linkItem.platform || ''; // 確保不是 undefined
-                
-                if (platform === 'YouTube') {
-                  linkType = 'youtube';
-                } else if (platform === 'Spotify') {
-                  linkType = 'spotify';
-                } else if (platform && ['Instagram', 'Threads', 'Facebook', 'LINE', 'TikTok', 'X', 'Shopee', 'GitHub'].includes(platform)) {
-                  linkType = 'social';
-                } else {
-                  linkType = 'custom';
-                }
-              }
-
-              // YouTube
-              if (linkType === 'youtube') {
-                const embedUrl = getYouTubeEmbedUrl(linkItem.url);
-                
-                if (!embedUrl) {
-                  return null;
-                }
-                
-                return (
-                  <div key={linkItem.id} className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden shadow-lg">
-                    <iframe
-                      src={embedUrl}
-                      title="YouTube video player"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                      className="absolute top-0 left-0 w-full h-full"
-                      style={{
-                        borderRadius: `${border.radius}px`,
-                      }}
-                    />
-                  </div>
-                );
-              }
-
-              // Spotify 嵌入式播放器
-              if (linkType === 'spotify') {
-                const embedUrl = getSpotifyEmbedUrl(linkItem.url);
-                
-                if (!embedUrl) {
-                  return null;
-                }
-                
-                return (
-                  <div key={linkItem.id} className="w-full rounded-lg overflow-hidden shadow-lg">
-                    <iframe
-                      src={embedUrl}
-                      width="100%"
-                      height="352"
-                      frameBorder="0"
-                      allowTransparency={true}
-                      allow="encrypted-media"
-                      title="Spotify player"
-                      style={{
-                        borderRadius: `${border.radius}px`,
-                      }}
-                    />
-                  </div>
-                );
-              }
-
-              // 社群平台按鈕
-              if (linkType === 'social') {
-                // 修正：檢查 platform 是否存在且有對應的圖標
-                const platformName = linkItem.platform;
-                if (!platformName) {
-                  return null;
-                }
-
-                return (
-                  <a
-                    key={linkItem.id}
-                    href={linkItem.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-3 justify-start whitespace-nowrap transition-transform hover:scale-[1.02]"
-                    style={{
-                      backgroundColor: color.buttonSecondary,
-                      borderRadius: `${border.radius}px`,
-                      borderStyle: border.style,
-                      color: color.fontPrimary,
-                    }}
-                  >
-                    {socialIcon[platformName] && (
-                      <Image
-                        src={socialIcon[platformName]}
-                        alt={platformName}
-                        width={20}
-                        height={20}
-                        className="h-5 w-5 shrink-0"
-                      />
-                    )}
-                    <span className="truncate">{platformName}</span>
-                  </a>
-                );
-              }
-
-              // 自訂連結按鈕
-              if (linkType === 'custom') {
-                const displayText = linkItem.platform || '自訂連結';
-                
-                return (
-                  <a
-                    key={linkItem.id}
-                    href={linkItem.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block px-4 py-3 text-center transition-transform hover:scale-[1.02]"
-                    style={{
-                      backgroundColor: color.buttonPrimary,
-                      borderRadius: `${border.radius}px`,
-                      borderStyle: border.style,
-                      color: '#fff',
-                    }}
-                  >
-                    {displayText}
-                  </a>
-                );
-              }
-
-              return null;
-            })}
-          </div>
+        {/* links */}
+        {processedLinks.length > 0 && (
+          <div className="flex flex-col gap-4">{processedLinks.map(renderItem)}</div>
         )}
-
-        {/* Footer */}
-        <footer className="text-xs text-gray-400 pt-8">© 2025 FanLink</footer>
       </div>
+
+      {/* footer */}
+      <footer className="mt-8 flex justify-center text-xs text-gray-400">© 2025 FanLink</footer>
     </div>
   );
 }

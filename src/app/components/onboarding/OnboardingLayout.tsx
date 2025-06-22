@@ -71,11 +71,12 @@ export default function OnboardingLayout() {
   const updateForm = (d: Partial<FormData>) => setFormData((prev) => ({ ...prev, ...d }));
 
   const handleSubmit = async () => {
-    const user = auth.currentUser;
+  const user = auth.currentUser;
   if (!user) {
     alert('請先登入');
     return;
   }
+
   let avatarUrl = formData.avatarUrl;
 
   // 若有待上傳檔案才呼叫 imgbb
@@ -83,12 +84,17 @@ export default function OnboardingLayout() {
     avatarUrl = await uploadToImgbb(formData.avatarFile);
   }
 
-  // 把 avatarUrl 與其他欄位寫入 Firestore
+  const {
+    avatarFile,
+    ...rest
+  } = formData;
+
+  console.log("avatarFile: ", avatarFile);
   await setDoc(doc(db, 'profiles', user.uid), {
-    ...formData,
-    avatarUrl,
-    avatarFile: undefined,   // 不存 File
+    ...rest,
+    avatarUrl, // 用最新上傳的 URL 蓋掉原本 blob 預覽網址
   });
+
   router.push(`/complete?uid=${user.uid}`);
 };
 

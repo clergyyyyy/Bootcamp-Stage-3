@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed:templates": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register scripts/seedTemplates.ts",
-    "patch": "node scripts/patchLinks.cjs"
+    "patch": "node scripts/patchlink.ts",
+    "patch-links": "node --loader ts-node/esm scripts/patchlink.ts"
   },
   "dependencies": {
     "@dotlottie/player-component": "^2.7.12",
@@ -23,6 +24,7 @@
     "firebase": "^11.7.3",
     "firebase-admin": "^13.4.0",
     "framer-motion": "^12.12.1",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.511.0",
     "next": "15.3.2",
     "ogl": "^1.0.11",
@@ -30,14 +32,17 @@
     "react-confetti": "^6.4.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.7",
+    "@types/html2canvas": "^0.5.35",
     "@types/node": "^20.17.47",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9.26.0",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4.1.7",
