@@ -15,6 +15,7 @@ import { uploadToImgbb } from '@/lib/uploadToImgbb';
 import { db } from '@/lib/firebase';
 import type { Template } from '@/types/Template';
 import type { UnifiedLinkItem, ObjektNFT } from '@/types/unified-link';
+import ClaimNavBar from './ClaimNavBar';
 
 /* ------------------------------------------------------------------
  * type helpers
@@ -333,6 +334,9 @@ export default function MobileDashboard({
             </div>
           ) : (
             <div ref={previewRef}>
+                        {siteID && (
+            <ClaimNavBar siteID={siteID} className="max-w-100% mb-4" />
+          )}
               <PreviewCard profile={{ avatarUrl: avatarUrl || '', bioTitle: bioTitle || '', introduction: bio || '', links, siteID: siteID || '' }} template={template ?? undefined} />
             </div>
           )}

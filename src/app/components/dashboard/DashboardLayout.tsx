@@ -15,6 +15,7 @@ import { uploadToImgbb } from '@/lib/uploadToImgbb';
 import { db } from '@/lib/firebase';
 import { Template } from '@/types/Template';
 import type { UnifiedLinkItem, ObjektNFT } from '@/types/unified-link';
+import ClaimNavBar from './ClaimNavBar';
 
 /* ------------------------------------------------------------------
  * type helpers
@@ -319,6 +320,9 @@ export default function DashboardLayout({
             </main>
           ) : (
             <main className="flex-1 lg:flex-[3_3_0%] min-w-0 p-6 overflow-auto">
+            {siteID && (
+            <ClaimNavBar siteID={siteID} className="max-w-100% mb-4" />
+          )}
               {/* Avatar */}
               <section className="mb-6">
                 <h2 className="mb-2 bg-gray-100 text-center text-sm font-semibold !text-gray-500">My Avatar</h2>

@@ -141,15 +141,16 @@ const buildUnifiedLinkItems = (
 // 驗證 Objekt NFT 資料格式
 const validateObjektNFT = (objekt: unknown): objekt is ObjektNFT => {
   if (typeof objekt !== 'object' || objekt === null) return false;
-  
-  const obj = objekt as Record<string, unknown>;
+
+  const o = objekt as Partial<ObjektNFT>;
+
   return (
-    typeof obj.id === 'string' &&
-    typeof obj.name === 'string' &&
-    typeof obj.image === 'string' &&
-    obj.id.length > 0 &&
-    obj.name.length > 0 &&
-    obj.image.length > 0
+    typeof o.id === 'string' &&
+    typeof o.name === 'string' &&
+    typeof o.image === 'string' &&
+    o.id.length > 0 &&
+    o.name.length > 0 &&
+    o.image.length > 0
   );
 };
 
@@ -158,16 +159,13 @@ const cleanObjektArray = (objekts: unknown[]): ObjektNFT[] => {
   if (!Array.isArray(objekts)) return [];
   return objekts
     .filter(validateObjektNFT)
-    .map((objekt) => {
-      // 因為已經通過 validateObjektNFT 驗證，所以可以安全地轉換
-      const validObjekt = objekt as ObjektNFT;
-      return {
-        id: validObjekt.id,
-        name: validObjekt.name,
-        image: validObjekt.image,
-      };
-    });
+    .map((objekt) => ({
+      id: (objekt as ObjektNFT).id,
+      name: (objekt as ObjektNFT).name,
+      image: (objekt as ObjektNFT).image,
+    }));
 };
+
 
 /* ---------------------------------------------------------- */
 
@@ -204,30 +202,28 @@ export default function DashboardPage() {
         setBio(raw.introduction || raw.bio || ''); // 支援兩種欄位名稱
         setSiteID(raw.siteID || '');
 
-        // 處理統一連結資料
-        const rawUnifiedLinks: RawLinkItem[] = Array.isArray(raw.unifiedLinks) 
-          ? raw.unifiedLinks 
-          : [];
+const processedRawLinks: RawLinkItem[] = Array.isArray(raw.unifiedLinks)
+  ? raw.unifiedLinks.map((item) => {
+      if (item.type === 'objekt' && item.objekts) {
+        return {
+          ...item,
+          objekts: cleanObjektArray(item.objekts),
+        };
+      }
+      return item;
+    })
+  : [];
 
-        // 清理 Objekt NFT 資料
-        const processedRawLinks = rawUnifiedLinks.map((item) => {
-          if (item.type === 'objekt' && item.objekts) {
-            return {
-              ...item,
-              objekts: cleanObjektArray(item.objekts),
-            };
-          }
-          return item;
-        });
+const unifiedLinks = buildUnifiedLinkItems(
+  processedRawLinks,
+  raw.socialLinks || {}
+);
 
-        // 構建統一連結列表
-        const unifiedLinkItems = buildUnifiedLinkItems(
-          processedRawLinks,
-          raw.socialLinks || {}
-        );
 
-        console.log('✅ 處理後的統一連結:', unifiedLinkItems);
-        setLinks(unifiedLinkItems);
+console.log('✅ unifiedLinks:', unifiedLinks);
+
+setLinks(unifiedLinks);
+
 
         // 載入模板
         if (raw.template) {
@@ -237,6 +233,7 @@ export default function DashboardPage() {
             console.log('🎨 載入的模板:', tplSnap.data());
           }
         }
+        
 
       } catch (error) {
         console.error('❌ 載入用戶資料失敗:', error);
@@ -263,6 +260,8 @@ export default function DashboardPage() {
       });
     }
   }, [links]);
+
+  
 
   return (
     <>
