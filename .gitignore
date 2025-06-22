@@ -172,3 +172,7 @@ web_modules/
 .yarn/install-state.gz
 .pnp.*
 *.json
+serviceAccountKey.json
+*.json
+.env*
+credentials/
