@@ -202,26 +202,23 @@ export default function DashboardPage() {
         setBio(raw.introduction || raw.bio || ''); // 支援兩種欄位名稱
         setSiteID(raw.siteID || '');
 
-const processedRawLinks: RawLinkItem[] = Array.isArray(raw.unifiedLinks)
-  ? raw.unifiedLinks.map((item) => {
-      if (item.type === 'objekt' && item.objekts) {
-        return {
-          ...item,
-          objekts: cleanObjektArray(item.objekts),
-        };
-      }
-      return item;
-    })
-  : [];
+/* -------- 取 Firestore 後 ---------- */
+const rawLinkArray: RawLinkItem[] = [
+  ...(Array.isArray(raw.unifiedLinks) ? raw.unifiedLinks : []),
+  ...(Array.isArray(raw.links)        ? raw.links        : []),
+];
 
+const processedRawLinks: RawLinkItem[] = rawLinkArray.map((item) =>
+  item?.type === 'objekt' && item.objekts
+    ? { ...item, objekts: cleanObjektArray(item.objekts) }
+    : item
+);
+
+/* ① 產生 unifiedLinks */
 const unifiedLinks = buildUnifiedLinkItems(
   processedRawLinks,
   raw.socialLinks || {}
 );
-
-
-console.log('✅ unifiedLinks:', unifiedLinks);
-
 setLinks(unifiedLinks);
 
 

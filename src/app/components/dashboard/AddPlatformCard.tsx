@@ -235,7 +235,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
               </button>
             </div>
 
-            {/* 根據模式顯示不同內容 */}
+            {/* 根據mode顯示對應內容 */}
             {mode === 'link' ? (
               <>
                 <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4 w-full hide-scrollbar">

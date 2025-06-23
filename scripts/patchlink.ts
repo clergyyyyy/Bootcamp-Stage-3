@@ -20,7 +20,7 @@ console.log('🚀 讀取 serviceAccountKey.json ...');
 const serviceAccount = JSON.parse(await fs.readFile(keyPath, 'utf8'));
 
 /* ------------------------------------------------------------------ */
-/*  3. 初始化 Firebase Admin (ESM 寫法)                               */
+/*  3. 初始化 Firebase Admin                                           */
 /* ------------------------------------------------------------------ */
 if (!admin.apps.length) {
   admin.initializeApp({

@@ -30,7 +30,7 @@ const deduplicateLinks = (links: UnifiedLinkItem[]): UnifiedLinkItem[] => {
     } else if (isLinkItem(link)) {
       key = `${link.type}:${(link.platform ?? '').toLowerCase()}:${link.url}`;
     } else {
-      return false; // 理論上不會到這裡
+      return false;
     }
 
     if (seen.has(key)) return false;

@@ -106,6 +106,8 @@ export default function DashboardLayout({
   const previewRef = useRef<HTMLDivElement>(null);
 
   /* ------------------------- export image ------------------------ */
+
+  
   const handleExportImage = async () => {
     if (!previewRef.current) return alert('找不到預覽區域');
 
