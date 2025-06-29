@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# About FanLink
+FanLink is an all-in-one **Link-in-bio** tool designed for K-pop fans to connect, trade, and promote their favorite idols🥳!
+It supports showcasing Cosmo Objekts (NFTs for Modhaus artists **tripleS, ARTMS, and idntt**) for trading use, enabling fans to display collections or listings.
 
-## Getting Started
+**Currently supported platforms include:**
+- Facebook
+- Instagram
+- Threads
+- X (Twitter)
+- LINE
+- Shopee
+- TikTok
+- YouTube
+- Spotify
+- Apollo / Cosmo Objekts
+- ... and more coming up!
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Disclaimer: FanLink is not affiliated with, endorsed by, or supported by any K-POP entertainment company or its artists.
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Some Pretty Examples of FanLink Sites for Your Inspiration 💖
+- Show Your Objekts! (https://fanlink-demo.vercel.app/clergyyyyy)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# FanLink Features
+1. Instantly create a beautiful personal site with your Google account
+2. Show and organize all your platform links
+3. Display your digital Objekt cards
+4. Promote your favorite idols
+5. Share the events you’ve joined or plan to attend
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+![Home Page](./public/readme/1.png)
+![Dashboard](./public/readme/2.png)
+![PersonalSite](./public/readme/3.png)
 
-## Learn More
+# Requirements
+Node.js 18+
+TypeScript
+React 19
+Next.js 15
+Tailwind CSS v4
+Firebase (Auth, Firestore, Storage)
+Vercel for deployment
 
-To learn more about Next.js, take a look at the following resources:
+# Setup
+```
+git clone git@github.com/clergyyyyy/bootcamp-stage-3
+cd cosmo-web
+pnpm install
+cp .env.example .env.local
+pnpm dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Tooling
+Next.js v15
+Tailwind CSS v4
+Lucid-react component library
+Firebase (Auth, Firestore, Storage)
+Vercel for hosting
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# License
+Licensed under the MIT License.
 
-## Deploy on Vercel
+# Contact
+Discord: clergyyyyy
+Email: alicewu020@gmail.com
+Cosmo ID: clergyyyyy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
