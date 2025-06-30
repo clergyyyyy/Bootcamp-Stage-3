@@ -13,7 +13,7 @@ export interface SortableLinkListProps {
   onUpdateUnifiedLink: (id: string, updates: Partial<UnifiedLinkItem>) => void;
   onRemoveUnifiedLink: (id: string) => void;
   onReorderUnifiedLinks: (newOrder: UnifiedLinkItem[]) => void;
-  onDragStart?: () => void;      // ✅ 新增：拖曳開始回調
+  onDragStart?: () => void;
   onDragComplete?: () => void; 
 }
 
@@ -114,9 +114,9 @@ interface DraggableItemProps {
   moveItem: (from: number, to: number) => void;
   onUpdateUnifiedLink: (id: string, updates: Partial<UnifiedLinkItem>) => void;
   onRemoveUnifiedLink: (id: string) => void;
-  onDragStart?: () => void;  // ✅ 新增
-  onDragEnd?: () => void;    // ✅ 新增
-  isDragInProgress?: boolean; // ✅ 新增
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  isDragInProgress?: boolean;
 }
 
 function DraggableItem({ 
@@ -125,9 +125,9 @@ function DraggableItem({
   moveItem, 
   onUpdateUnifiedLink, 
   onRemoveUnifiedLink,
-  onDragStart, // ✅ 接收 props
-  onDragEnd,   // ✅ 接收 props
-  isDragInProgress // ✅ 接收 props
+  onDragStart,
+  onDragEnd,
+  isDragInProgress
 }: DraggableItemProps) {
   const [editing, setEditing] = useState(false);
   const [draftUrl, setDraftUrl] = useState('');
@@ -163,7 +163,7 @@ function DraggableItem({
     }),
   });
 
-  // ✅ 使用 useEffect 來監聽拖曳狀態變化
+  // useEffect 來監聽拖曳狀態變化
   useEffect(() => {
     if (isDragging && onDragStart) {
       onDragStart();
@@ -248,11 +248,8 @@ function DraggableItem({
     }
   };
 
-  // ✅ 改進的失去焦點處理 - 使用延遲檢查避免在編輯區域內切換焦點時退出
   const handleBlur = (e: React.FocusEvent) => {
-    // 延遲檢查，讓新的焦點事件有時間觸發
     setTimeout(() => {
-      // 檢查新的焦點是否仍在當前編輯區域內
       const activeElement = document.activeElement;
       const currentContainer = ref.current?.querySelector('[data-editing-container]');
       
@@ -266,9 +263,8 @@ function DraggableItem({
     }, 0);
   };
 
-  // 鍵盤操作
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { // Shift+Enter 允許換行
+    if (e.key === 'Enter' && !e.shiftKey) { // Shift+Enter 換行
       e.preventDefault();
       setEditing(false);
     } else if (e.key === 'Escape') {
@@ -298,7 +294,6 @@ function DraggableItem({
 
   drag(drop(ref));
 
-  // 統一的容器樣式
   const containerClassName = `
     flex items-center gap-2 border px-3 py-2 rounded bg-white shadow-sm 
     transition-all duration-200 ease-out transform-gpu
@@ -484,7 +479,7 @@ function DraggableItem({
           {/* 平台名稱 */}
           <span className="text-sm font-medium w-20">Text Block</span>
 
-          {/* ✅ 內容編輯區域 - 現在支援 Title 和 Content */}
+          {/* 內容編輯區域 */}
           <div className="flex-1">
             {editing ? (
               <div className="space-y-2" onClick={(e) => e.stopPropagation()} data-editing-container>
@@ -523,12 +518,10 @@ function DraggableItem({
                 className="cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors duration-200"
                 onClick={() => setEditing(true)}
               >
-                {/* ✅ 始終顯示 Title 區域 */}
                 <div className="text-sm font-medium text-gray-900 mb-1">
                   {item.title || '（點擊添加標題）'}
                 </div>
                 
-                {/* ✅ 顯示 Content */}
                 <div className="text-sm text-gray-700 whitespace-pre-wrap">
                   {item.content || '（點擊編輯文字內容）'}
                 </div>
@@ -636,13 +629,13 @@ export default function SortableLinkList({
   onUpdateUnifiedLink, 
   onRemoveUnifiedLink, 
   onReorderUnifiedLinks,
-  onDragStart,     // ✅ 接收新的回調
-  onDragComplete// ✅ 接收拖曳完成回調
+  onDragStart,
+  onDragComplete
 }: SortableLinkListProps) {
   const [localItems, setLocalItems] = useState<UnifiedLinkItem[]>(
     deduplicateLinks(unifiedLinks)
   );
-  const [isDragInProgress, setIsDragInProgress] = useState(false); // ✅ 追蹤拖曳狀態
+  const [isDragInProgress, setIsDragInProgress] = useState(false);
 
   useEffect(() => {
     const processed = unifiedLinks.map((link) => {
@@ -667,18 +660,15 @@ export default function SortableLinkList({
     onReorderUnifiedLinks(updated);
   }, [localItems, onReorderUnifiedLinks]);
 
-  // ✅ 處理拖曳開始
   const handleDragStart = useCallback(() => {
     console.log('Drag started in SortableLinkList');
     setIsDragInProgress(true);
     onDragStart?.(); // 通知父組件
   }, [onDragStart]);
 
-  // ✅ 處理拖曳結束
   const handleDragEnd = useCallback(() => {
     console.log('Drag ended in SortableLinkList');
     setIsDragInProgress(false);
-    // 延遲一點點再觸發，確保 DOM 更新完成
     setTimeout(() => {
       onDragComplete?.(); // 通知父組件
     }, 100);
@@ -695,9 +685,9 @@ export default function SortableLinkList({
             moveItem={moveItem}
             onUpdateUnifiedLink={onUpdateUnifiedLink}
             onRemoveUnifiedLink={onRemoveUnifiedLink}
-            onDragStart={handleDragStart}     // ✅ 傳遞給 DraggableItem
-            onDragEnd={handleDragEnd}        // ✅ 傳遞給 DraggableItem
-            isDragInProgress={isDragInProgress} // ✅ 傳遞拖曳狀態
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            isDragInProgress={isDragInProgress}
           />
         ))}
       </div>

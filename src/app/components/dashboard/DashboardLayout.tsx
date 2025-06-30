@@ -100,25 +100,22 @@ export default function DashboardLayout({
   const [isExporting, setIsExporting] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // ✅ 新增：預覽重新載入相關狀態
+  // 新增：預覽重新載入狀態
   const [previewKey, setPreviewKey] = useState(0);
   const [isDragInProgress, setIsDragInProgress] = useState(false);
 
   /* ------------------------- 拖曳處理 ------------------------ */
-  
-  // ✅ 處理拖曳開始
   const handleDragStart = useCallback(() => {
     console.log('Drag started in DashboardLayout');
     setIsDragInProgress(true);
   }, []);
 
-  // ✅ 處理拖曳完成後重新載入預覽
   const handleDragComplete = useCallback(() => {
     console.log('Drag completed, reloading PreviewCard...');
     
-    // 延遲一點點確保 DOM 更新完成，然後重新載入 PreviewCard
+    // 延遲確保 DOM 更新，然後重新載入 PreviewCard
     setTimeout(() => {
-      setPreviewKey(prev => prev + 1); // 改變 key，強制完全重新掛載
+      setPreviewKey(prev => prev + 1);
       setIsDragInProgress(false);
       console.log('PreviewCard reloaded with key:', previewKey + 1);
     }, 100);
@@ -380,14 +377,14 @@ export default function DashboardLayout({
               <section className="mb-6">
                 <h2 className="mb-2 bg-gray-100 text-center text-sm font-semibold !text-gray-500">My Links</h2>
                 <AddPlatformCard onAdd={handleAddLink} />
-                {/* ✅ 傳遞拖曳處理函數給 SortableLinkList */}
+                {/* 傳遞拖曳處理函數給 SortableLinkList */}
                 <SortableLinkList
                   unifiedLinks={links}
                   onUpdateUnifiedLink={handleUpdateUnifiedLink}
                   onRemoveUnifiedLink={handleRemoveLink}
                   onReorderUnifiedLinks={handleReorderUnifiedLinks}
-                  onDragStart={handleDragStart}       // ✅ 新增
-                  onDragComplete={handleDragComplete} // ✅ 新增
+                  onDragStart={handleDragStart}
+                  onDragComplete={handleDragComplete}
                 />
               </section>
             </main>
@@ -414,9 +411,8 @@ export default function DashboardLayout({
             )}
             
             <div ref={previewRef}>
-              {/* ✅ 使用增強版 PreviewCard，傳遞 remountTrigger */}
               <PreviewCard
-                key={`preview-${previewKey}`} // 保持原有的 key 策略
+                key={`preview-${previewKey}`}
                 profile={{
                   avatarUrl: avatarUrl || '',
                   bioTitle: bioTitle || '',
@@ -425,7 +421,7 @@ export default function DashboardLayout({
                   siteID: siteID || '',
                 }}
                 template={template || undefined}
-                remountTrigger={previewKey} // ✅ 傳遞重新掛載觸發器
+                remountTrigger={previewKey}
               />
             </div>
           </aside>
