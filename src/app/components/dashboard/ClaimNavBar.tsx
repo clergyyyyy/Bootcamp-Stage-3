@@ -41,7 +41,7 @@ export default function ClaimNavBar({ siteID, className = '' }: ClaimNavBarProps
       {/* 左側內容 */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <span className="text-lg">🔥</span>
-        <span className="text-sm font-medium">Claim your Fanlink at</span>
+        <span className="text-sm font-medium">Claim at</span>
         <a 
           href={url}
           target="_blank"

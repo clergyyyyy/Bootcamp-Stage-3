@@ -1,13 +1,14 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import React from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Template } from '@/types/Template';
 import type { Profile } from '@/types/profile';
 import type { UnifiedLinkItem, ObjektNFT } from '@/types/unified-link';
-import { isTextItem, isObjektItem, isLinkItem,} from '@/types/unified-link';
+import { isTextItem, isObjektItem, isLinkItem } from '@/types/unified-link';
 
 /* ---------- static ---------- */
 const socialIcon: Record<string, string> = {
@@ -77,7 +78,7 @@ const calculateObjektLayout = (
 };
 
 /* ---------- Objekt 顯示元件 ---------- */
-const ObjektDisplay = ({
+const ObjektDisplay = React.memo(({
   objekts,
   title,
   template,
@@ -171,25 +172,34 @@ const ObjektDisplay = ({
       )}
     </div>
   );
-};
+});
 
 /* ---------- 主要卡片元件 ---------- */
 export default function PreviewCard({
   profile,
   template,
+  remountTrigger = 0,
 }: {
   profile: Partial<Profile>;
   template?: Template;
+  remountTrigger?: number;
 }) {
   /* 載入 template */
   const [loaded, setLoaded] = useState<Template | null>(null);
+
+  // ✅ 監控 remountTrigger 變化
+  useEffect(() => {
+    if (remountTrigger > 0) {
+      console.log('🎯 [PreviewCard] Remount trigger received:', remountTrigger);
+    }
+  }, [remountTrigger]);
 
   useEffect(() => {
     if (!template && profile.templateKey) {
       (async () => {
         try {
-const key = profile.templateKey as string; // 已在 if 條件中保證存在
-const ref = doc(db, 'templates', key);
+          const key = profile.templateKey as string;
+          const ref = doc(db, 'templates', key);
           const snap = await getDoc(ref);
           if (snap.exists()) setLoaded(snap.data() as Template);
         } catch {
@@ -203,180 +213,176 @@ const ref = doc(db, 'templates', key);
   const { color, border, bgImage, fontFamily } = tpl;
 
   /* ---------- 去重 ---------- */
+  const deduplicateLinks = useCallback((links: UnifiedLinkItem[] = []): UnifiedLinkItem[] => {
+    const seen = new Set<string>();
+    const result: UnifiedLinkItem[] = [];
 
-const deduplicateLinks = (links: UnifiedLinkItem[] = []): UnifiedLinkItem[] => {
-  const seen   = new Set<string>();
-  const result: UnifiedLinkItem[] = [];
+    // 先按照 legacy 與 order 排序
+    const sorted = [...links].sort((a, b) => {
+      const aLegacy = a.id.includes('-legacy');
+      const bLegacy = b.id.includes('-legacy');
+      if (aLegacy !== bLegacy) return aLegacy ? 1 : -1;
+      return (a.order ?? 0) - (b.order ?? 0);
+    });
 
-  // 先按照 legacy 與 order 排序
-  const sorted = [...links].sort((a, b) => {
-    const aLegacy = a.id.includes('-legacy');
-    const bLegacy = b.id.includes('-legacy');
-    if (aLegacy !== bLegacy) return aLegacy ? 1 : -1;
-    return (a.order ?? 0) - (b.order ?? 0);
-  });
+    for (const link of sorted) {
+      let key: string;
 
-  for (const link of sorted) {
-    let key: string;
+      if (isTextItem(link)) {
+        key = `text:${link.content.slice(0, 20)}`;
+      } else if (isObjektItem(link)) {
+        key = `objekt:${link.id}:${link.objekts.length}`;
+      } else if (isLinkItem(link)) {
+        // social / youtube / spotify / custom
+        key = `${link.type}:${(link.platform ?? '').toLowerCase()}:${link.url}`;
+      } else {
+        continue; // 不可能進來，但保險
+      }
 
-    if (isTextItem(link)) {
-      key = `text:${link.content.slice(0, 20)}`;
-    } else if (isObjektItem(link)) {
-      key = `objekt:${link.id}:${link.objekts.length}`;
-    } else if (isLinkItem(link)) {
-      // social / youtube / spotify / custom
-      key = `${link.type}:${(link.platform ?? '').toLowerCase()}:${link.url}`;
-    } else {
-      continue; // 不可能進來，但保險
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(link);
+      }
     }
 
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(link);
-    }
-  }
+    return result;
+  }, []);
 
-  return result;
-};
-
-
-const processedLinks = deduplicateLinks(
- (profile.links ?? []) as UnifiedLinkItem[],
-);
+  const processedLinks = useMemo(() => 
+    deduplicateLinks((profile.links ?? []) as UnifiedLinkItem[]), 
+    [profile.links, deduplicateLinks]
+  );
 
   /* ---------- render helper ---------- */
-  const renderItem = (item: UnifiedLinkItem) => {
-    switch (item.type) {
-      case 'objekt': {
-        const objItem = item as Extract<UnifiedLinkItem, { type: 'objekt' }>;
-        if (!objItem.objekts?.length) return null;
-        return (
-          <ObjektDisplay
-            key={objItem.id}
-            objekts={objItem.objekts}
-            title={objItem.title}
-            template={tpl}
-          />
-        );
-      }
-
-      case 'text': {
-        const textItem = item as Extract<UnifiedLinkItem, { type: 'text' }>;
-        if (!textItem.content?.trim()) return null;
-        return (
-          <div
-            key={textItem.id}
-            className="px-4 py-3 text-left transition-all duration-200"
-            style={{
-              backgroundColor: color.buttonPrimary,
-              borderRadius: `${border.radius}px`,
-              borderStyle: border.style,
-              borderWidth: border.style === 'none' ? '0px' : '1px',
-              borderColor: color.fontSecondary,
-            }}
-          >
-            {textItem.title?.trim() && (
-              <h3 className="text-sm font-semibold mb-2" style={{ color: color.fontPrimary }}>
-                {textItem.title}
-              </h3>
-            )}
-            <div
-              className="text-sm whitespace-pre-line leading-relaxed"
-              style={{ color: color.fontSecondary, minHeight: '1.25rem' }}
-            >
-              {textItem.content}
-            </div>
-          </div>
-        );
-      }
-
-      case 'youtube': {
-        const src = getYtEmbed(item.url);
-        if (!src) return null;
-        return (
-          <div key={item.id} className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden shadow-lg">
-            <iframe
-              src={src}
-              className="absolute top-0 left-0 w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              style={{ borderRadius: `${border.radius}px` }}
-              title="YouTube video player"
-            />
-          </div>
-        );
-      }
-
-      case 'spotify': {
-        const src = getSpEmbed(item.url);
-        if (!src) return null;
-        return (
-          <div key={item.id} className="w-full rounded-lg overflow-hidden shadow-lg">
-            <iframe
-              src={src}
-              width="100%"
-              height="352"
-              frameBorder="0"
-              allow="encrypted-media"
-              title="Spotify player"
-              className="border-0 bg-transparent"
-              style={{ borderRadius: `${border.radius}px` }}
-            />
-          </div>
-        );
-      }
-
-      case 'social':
-        return (
-          <a
-            key={item.id}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-3 transition hover:scale-[1.02]"
-            style={{
-              backgroundColor: color.buttonSecondary,
-              borderRadius: `${border.radius}px`,
-              borderStyle: border.style,
-              color: color.fontPrimary,
-            }}
-          >
-            {item.platform && socialIcon[item.platform] && (
-              <Image
-                src={socialIcon[item.platform]}
-                alt={item.platform}
-                width={20}
-                height={20}
-                className="h-5 w-5"
-              />
-            )}
-            <span className="text-sm">{item.platform}</span>
-          </a>
-        );
-
-      case 'custom':
-        return (
-          <a
-            key={item.id}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block px-4 py-3 text-center transition hover:scale-[1.02]"
-            style={{
-              backgroundColor: color.buttonPrimary,
-              borderRadius: `${border.radius}px`,
-              borderStyle: border.style,
-              color: '#fff',
-            }}
-          >
-            {item.title || item.platform || '自訂連結'}
-          </a>
-        );
-
-      default:
-        return null; // 不明類型直接忽略
+  const renderItem = useCallback((item: UnifiedLinkItem) => {
+    // ✅ 使用 type guards 而不是 Extract
+    if (item.type === 'objekt') {
+      if (!item.objekts?.length) return null;
+      return (
+        <ObjektDisplay
+          key={item.id}
+          objekts={item.objekts}
+          title={item.title}
+          template={tpl}
+        />
+      );
     }
-  };
+
+    if (item.type === 'text') {
+      if (!item.content?.trim()) return null;
+      return (
+        <div
+          key={item.id}
+          className="px-4 py-3 text-left transition-all duration-200"
+          style={{
+            backgroundColor: color.buttonPrimary,
+            borderRadius: `${border.radius}px`,
+            borderStyle: border.style,
+            borderWidth: border.style === 'none' ? '0px' : '1px',
+            borderColor: color.fontSecondary,
+          }}
+        >
+          {item.title?.trim() && (
+            <h3 className="text-sm font-semibold mb-2" style={{ color: color.fontPrimary }}>
+              {item.title}
+            </h3>
+          )}
+          <div
+            className="text-sm whitespace-pre-line leading-relaxed"
+            style={{ color: color.fontSecondary, minHeight: '1.25rem' }}
+          >
+            {item.content}
+          </div>
+        </div>
+      );
+    }
+
+    // YouTube 嵌入
+    if (item.type === 'youtube') {
+      return (
+        <iframe
+          key={`yt-${item.id}-${item.order}`}
+          src={getYtEmbed(item.url) ?? ''}
+          className="w-full h-[56.25vw] max-h-[352px] border-0 rounded-lg"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          loading="lazy"
+        />
+      );
+    }
+
+    // Spotify 嵌入
+    if (item.type === 'spotify') {
+      return (
+        <iframe
+          key={`sp-${item.id}-${item.order}`}
+          src={getSpEmbed(item.url) ?? ''}
+          width="100%"
+          height="352"
+          frameBorder="0"
+          allow="encrypted-media"
+          className="border-0 rounded-lg"
+          loading="lazy"
+        />
+      );
+    }
+
+    // 社群平台連結（內建平台，有圖標）
+    if (item.type === 'social') {
+      return (
+        <a
+          key={item.id}
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 px-4 py-3 transition hover:scale-[1.02]"
+          style={{
+            backgroundColor: color.buttonSecondary,
+            borderRadius: `${border.radius}px`,
+            borderStyle: border.style,
+            color: color.fontPrimary,
+          }}
+        >
+          {item.platform && socialIcon[item.platform] && (
+            <Image
+              src={socialIcon[item.platform]}
+              alt={item.platform}
+              width={20}
+              height={20}
+              className="h-5 w-5"
+            />
+          )}
+          <span className="text-sm">{item.platform}</span>
+        </a>
+      );
+    }
+
+    // ✅ 修正：自訂連結 - 正確顯示用戶自定義的 platform 名稱
+    if (item.type === 'custom') {
+      // 優先順序：title > platform > '自訂連結'
+      const displayText = item.title?.trim() || item.platform?.trim() || '自訂連結';
+      
+      return (
+        <a
+          key={item.id}
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block px-4 py-3 text-center transition hover:scale-[1.02]"
+          style={{
+            backgroundColor: color.buttonPrimary,
+            borderRadius: `${border.radius}px`,
+            borderStyle: border.style,
+            color: '#fff',
+          }}
+        >
+          <span className="text-sm">{displayText}</span>
+        </a>
+      );
+    }
+
+    return null; // 不明類型直接忽略
+  }, [tpl, color, border, remountTrigger]);
 
   /* ---------- JSX ---------- */
   return (

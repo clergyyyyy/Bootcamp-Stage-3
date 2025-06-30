@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { signOut, getAuth } from 'firebase/auth';
 import { ChevronDown, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -21,7 +21,6 @@ import ClaimNavBar from './ClaimNavBar';
  * type helpers
  * ------------------------------------------------------------------ */
 
-// 具有基礎 id / order 欄位的交集型別
 interface BaseMappedLink {
   id: string;
   order: number;
@@ -36,10 +35,6 @@ type OtherLink  = UnifiedLinkItem & {
 };
 
 type AnyLink = TextLink | ObjektLink | OtherLink;
-
-/* ------------------------------------------------------------------
- * util: deep‑clean undefined / null (保留 Array 原樣)
- * ------------------------------------------------------------------ */
 
 const cleanObject = <T extends Record<string, unknown>>(obj: T): T => {
   const out: Record<string, unknown> = {};
@@ -105,9 +100,32 @@ export default function DashboardLayout({
   const [isExporting, setIsExporting] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
+  // ✅ 新增：預覽重新載入相關狀態
+  const [previewKey, setPreviewKey] = useState(0);
+  const [isDragInProgress, setIsDragInProgress] = useState(false);
+
+  /* ------------------------- 拖曳處理 ------------------------ */
+  
+  // ✅ 處理拖曳開始
+  const handleDragStart = useCallback(() => {
+    console.log('Drag started in DashboardLayout');
+    setIsDragInProgress(true);
+  }, []);
+
+  // ✅ 處理拖曳完成後重新載入預覽
+  const handleDragComplete = useCallback(() => {
+    console.log('Drag completed, reloading PreviewCard...');
+    
+    // 延遲一點點確保 DOM 更新完成，然後重新載入 PreviewCard
+    setTimeout(() => {
+      setPreviewKey(prev => prev + 1); // 改變 key，強制完全重新掛載
+      setIsDragInProgress(false);
+      console.log('PreviewCard reloaded with key:', previewKey + 1);
+    }, 100);
+  }, [previewKey]);
+
   /* ------------------------- export image ------------------------ */
 
-  
   const handleExportImage = async () => {
     if (!previewRef.current) return alert('找不到預覽區域');
 
@@ -129,7 +147,7 @@ export default function DashboardLayout({
       }, 'image/png', 0.95);
     } catch (e) {
       console.error(e);
-      alert('匯出失敗');
+      alert('Export failed');
     } finally {
       setIsExporting(false);
     }
@@ -138,7 +156,7 @@ export default function DashboardLayout({
   /* ------------------------- save ------------------------ */
   const handleSave = async () => {
     const user = getAuth().currentUser;
-    if (!user) return alert('未登入');
+    if (!user) return alert('Please log in');
 
     try {
       let finalAvatar = avatarUrl;
@@ -183,10 +201,10 @@ export default function DashboardLayout({
       });
 
       await updateDoc(doc(db, 'profiles', user.uid), payload);
-      alert('✅ 已儲存成功');
+      alert('✅ Saved Successfully');
     } catch (e) {
       console.error(e);
-      alert(`儲存失敗: ${(e as Error).message}`);
+      alert(`Saving Failed: ${(e as Error).message}`);
     }
   };
 
@@ -237,7 +255,7 @@ export default function DashboardLayout({
       setShowDropdown(false);
       setDropdownAnimating(false);
     } catch {
-      alert('登出失敗');
+      alert('Logged out failed');
     }
   };
 
@@ -283,12 +301,14 @@ export default function DashboardLayout({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
         <header className="flex items-center justify-between border-b-2 border-gray-200 p-4">
-          <h1 className="m-0 text-xl font-bold">My Site</h1>
+          <div>
+            <h1 className="m-0 text-xl font-bold">My Site</h1>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleExportImage}
-              disabled={isExporting || loading}
-              className={`flex items-center gap-2 rounded px-4 py-2 transition-all duration-200 ${isExporting || loading ? 'cursor-not-allowed bg-gray-300 text-gray-500' : 'bg-blue-600 text-white hover:scale-105 hover:bg-blue-700'}`}
+              disabled={isExporting || loading || isDragInProgress}
+              className={`flex items-center gap-2 rounded px-4 py-2 transition-all duration-200 ${isExporting || loading || isDragInProgress ? 'cursor-not-allowed bg-gray-300 text-gray-500' : 'bg-blue-600 text-white hover:scale-105 hover:bg-blue-700'}`}
             >
               {isExporting ? (
                 <>
@@ -302,7 +322,11 @@ export default function DashboardLayout({
                 </>
               )}
             </button>
-            <button onClick={handleSave} className="rounded bg-black px-4 py-2 text-white transition-colors duration-200 hover:bg-gray-800">
+            <button 
+              onClick={handleSave} 
+              disabled={isDragInProgress}
+              className={`rounded px-4 py-2 transition-colors duration-200 ${isDragInProgress ? 'cursor-not-allowed bg-gray-300 text-gray-500' : 'bg-black text-white hover:bg-gray-800'}`}
+            >
               Save
             </button>
           </div>
@@ -310,7 +334,6 @@ export default function DashboardLayout({
 
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden lg:flex-row">
-          {/* Edit panel */}
           {/* Edit panel */}
           {loading ? (
             <main className="flex-1 lg:flex-[3_3_0%] min-w-0 p-6 space-y-6">
@@ -322,9 +345,10 @@ export default function DashboardLayout({
             </main>
           ) : (
             <main className="flex-1 lg:flex-[3_3_0%] min-w-0 p-6 overflow-auto">
-            {siteID && (
-            <ClaimNavBar siteID={siteID} className="max-w-100% mb-4" />
-          )}
+              {siteID && (
+                <ClaimNavBar siteID={siteID} className="max-w-100% mb-4" />
+              )}
+              
               {/* Avatar */}
               <section className="mb-6">
                 <h2 className="mb-2 bg-gray-100 text-center text-sm font-semibold !text-gray-500">My Avatar</h2>
@@ -356,19 +380,43 @@ export default function DashboardLayout({
               <section className="mb-6">
                 <h2 className="mb-2 bg-gray-100 text-center text-sm font-semibold !text-gray-500">My Links</h2>
                 <AddPlatformCard onAdd={handleAddLink} />
+                {/* ✅ 傳遞拖曳處理函數給 SortableLinkList */}
                 <SortableLinkList
                   unifiedLinks={links}
                   onUpdateUnifiedLink={handleUpdateUnifiedLink}
                   onRemoveUnifiedLink={handleRemoveLink}
                   onReorderUnifiedLinks={handleReorderUnifiedLinks}
+                  onDragStart={handleDragStart}       // ✅ 新增
+                  onDragComplete={handleDragComplete} // ✅ 新增
                 />
               </section>
             </main>
           )}
 
-          <aside className="flex-[2_2_0%] min-w-[360px] max-w-[600px] overflow-y-auto border-l-2 border-gray-200 bg-gray-100 lg:block">
+          {/* Preview panel */}
+          <aside className="flex-[2_2_0%] min-w-[360px] max-w-[600px] overflow-y-auto border-l-2 border-gray-200 bg-gray-100 lg:block relative">
+            {/* ✅ 拖曳時的覆蓋層提示 */}
+            {isDragInProgress && (
+              <div
+                className={`
+                  absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-300
+                  ${isDragInProgress ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+                `}
+                style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
+              >
+                <div className="bg-white px-4 py-2 rounded-lg shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                    <span className="text-sm text-gray-600">Updating...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div ref={previewRef}>
+              {/* ✅ 使用增強版 PreviewCard，傳遞 remountTrigger */}
               <PreviewCard
+                key={`preview-${previewKey}`} // 保持原有的 key 策略
                 profile={{
                   avatarUrl: avatarUrl || '',
                   bioTitle: bioTitle || '',
@@ -377,6 +425,7 @@ export default function DashboardLayout({
                   siteID: siteID || '',
                 }}
                 template={template || undefined}
+                remountTrigger={previewKey} // ✅ 傳遞重新掛載觸發器
               />
             </div>
           </aside>

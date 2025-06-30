@@ -17,6 +17,7 @@ const platforms = [
   'Shopee',
   'YouTube',
   'Spotify',
+  'Website'
 ];
 
 interface ObjektNFT {
@@ -150,11 +151,11 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
 
   const getPlaceholderText = () => {
     if (selectedPlatform === 'YouTube') {
-      return '輸入 YouTube 影片網址';
+      return 'Input a YouTube video link';
     } else if (selectedPlatform === 'Spotify') {
-      return '輸入 Spotify 歌曲、專輯或播放清單網址';
+      return 'Input a Spotify song, album, or playlist link';
     }
-    return '輸入平台網址';
+    return 'Input any platform link';
   };
 
   const canConfirm = () => {
@@ -302,7 +303,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
                   {/* 內容輸入（必填） */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
-                      內容 <span className="text-red-500 text-xs">*</span>
+                      Content <span className="text-red-500 text-xs">*</span>
                     </label>
                     <div className="relative">
                       <textarea
@@ -329,7 +330,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
               </>
             ) : (
               <>
-                {/* Objekt NFT 模式 */}
+                {/* Objekt NFT */}
                 <div className="space-y-4">
                   {/* Add Objekt 區塊 */}
                   <div
@@ -338,7 +339,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
                   >
                     <div className="text-gray-500 text-sm">
                       <Plus size={24} className="mx-auto mb-2" />
-                      點擊新增 Objekt NFT
+                      Click to add Objekt
                     </div>
                   </div>
 
@@ -346,7 +347,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
                   {selectedObjekts.length > 0 && (
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        已選擇 {selectedObjekts.length} 個 Objekt
+                        Select {selectedObjekts.length} Objekt
                       </label>
                       <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                         {selectedObjekts.map((objekt) => (
@@ -382,7 +383,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
                 onClick={handleCollapse} 
                 className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 transform hover:scale-105 active:scale-95"
               >
-                取消
+                Cancel
               </button>
               <button 
                 onClick={handleConfirm} 
@@ -393,7 +394,7 @@ export default function AddPlatformCard({ onAdd }: { onAdd: (item: UnifiedLinkIt
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                確認新增
+                Add
               </button>
             </div>
           </div>

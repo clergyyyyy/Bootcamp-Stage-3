@@ -61,6 +61,10 @@ input {
   display: none; /* Chrome, Safari and Opera */
 }
 
+.drag-y-only {
+  transform: translateX(0px) !important;
+}
+
 :root {
   --color-lightgray: #CFCDD7;
 }
