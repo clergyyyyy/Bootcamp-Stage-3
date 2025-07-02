@@ -101,7 +101,8 @@ export default function DashboardLayout({
   const previewRef = useRef<HTMLDivElement>(null);
 
   // 新增：預覽重新載入狀態
-  const [previewKey, setPreviewKey] = useState(0);
+  const [previewKey, setPreviewKey] = useState(0);        // 用於拖曳後重新掛載整個組件
+  const [remountTrigger, setRemountTrigger] = useState(0); // 用於數據更新重新渲染
   const [isDragInProgress, setIsDragInProgress] = useState(false);
 
   /* ------------------------- 拖曳處理 ------------------------ */
@@ -116,6 +117,7 @@ export default function DashboardLayout({
     // 延遲確保 DOM 更新，然後重新載入 PreviewCard
     setTimeout(() => {
       setPreviewKey(prev => prev + 1);
+      setRemountTrigger(prev => prev + 1);
       setIsDragInProgress(false);
       console.log('PreviewCard reloaded with key:', previewKey + 1);
     }, 100);
@@ -221,24 +223,36 @@ export default function DashboardLayout({
     setLinks([...links, newLink]);
   };
 
-  const handleUpdateUnifiedLink = (id: string, upd: Partial<UnifiedLinkItem>) => {
-    setLinks(
-      links.map((origin) => {
-        if (origin.id !== id) return origin;
-        const merged = { ...origin, ...upd } as AnyLink;
+const handleUpdateUnifiedLink = (id: string, upd: Partial<UnifiedLinkItem>) => {
+  console.log('🔄 [Dashboard] handleUpdateUnifiedLink called:', { id, upd });
+  
+  // 更新 links 狀態
+  const newLinks = links.map((origin) => {
+    if (origin.id !== id) return origin;
+    const merged = { ...origin, ...upd } as AnyLink;
 
-        if (merged.type === 'text')
-          return cleanObject({ ...merged, content: merged.content ?? '' });
-        if (merged.type === 'objekt')
-          return cleanObject({ ...merged, objekts: merged.objekts ?? [] });
-        return cleanObject({
-          ...merged,
-          platform: merged.platform ?? '',
-          url: merged.url ?? '',
-        });
-      })
-    );
-  };
+    if (merged.type === 'text')
+      return cleanObject({ ...merged, content: merged.content ?? '' });
+    if (merged.type === 'objekt')
+      return cleanObject({ ...merged, objekts: merged.objekts ?? [] });
+    return cleanObject({
+      ...merged,
+      platform: merged.platform ?? '',
+      url: merged.url ?? '',
+    });
+  });
+  
+  console.log('📊 [Dashboard] New links after update:', newLinks);
+  setLinks(newLinks);
+
+  // 觸發重新渲染
+  setRemountTrigger(prev => {
+    const newTrigger = prev + 1;
+    console.log('🎯 [Dashboard] Setting remountTrigger:', newTrigger);
+    return newTrigger;
+  });
+};
+
 
   const handleRemoveLink = (id: string) => setLinks(links.filter((l) => l.id !== id));
 
@@ -268,6 +282,8 @@ export default function DashboardLayout({
       setShowDropdown(true);
     }
   };
+
+  
 
   /* ------------------------- JSX ------------------------ */
   return (
@@ -410,20 +426,20 @@ export default function DashboardLayout({
               </div>
             )}
             
-            <div ref={previewRef}>
-              <PreviewCard
-                key={`preview-${previewKey}`}
-                profile={{
-                  avatarUrl: avatarUrl || '',
-                  bioTitle: bioTitle || '',
-                  introduction: bio || '',
-                  links,
-                  siteID: siteID || '',
-                }}
-                template={template || undefined}
-                remountTrigger={previewKey}
-              />
-            </div>
+<div ref={previewRef}>
+  <PreviewCard
+    key={`preview-${previewKey}`}                    // 拖曳時完整重新掛載
+    profile={{
+      avatarUrl: avatarUrl || '',
+      bioTitle: bioTitle || '',
+      introduction: bio || '',
+      links,
+      siteID: siteID || '',
+    }}
+    template={template || undefined}
+    remountTrigger={remountTrigger}
+  />
+</div>
           </aside>
         </div>
       </div>

@@ -78,14 +78,14 @@ const calculateObjektLayout = (
 };
 
 /* ---------- Objekt 顯示元件 ---------- */
-const ObjektDisplay = React.memo(({
-  objekts,
-  title,
-  template,
-}: {
+const ObjektDisplay = React.memo<{
   objekts: ObjektNFT[];
   title?: string;
   template: Template;
+}>(({
+  objekts,
+  title,
+  template,
 }) => {
   console.log('Objekt title:', title);
   if (!objekts?.length) return null;
@@ -174,6 +174,9 @@ const ObjektDisplay = React.memo(({
   );
 });
 
+// 設定 displayName
+ObjektDisplay.displayName = 'ObjektDisplay';
+
 /* ---------- 主要卡片元件 ---------- */
 export default function PreviewCard({
   profile,
@@ -184,8 +187,10 @@ export default function PreviewCard({
   template?: Template;
   remountTrigger?: number;
 }) {
+  /* 載入 template */
   const [loaded, setLoaded] = useState<Template | null>(null);
 
+  // ✅ 監控 remountTrigger 變化
   useEffect(() => {
     if (remountTrigger > 0) {
       console.log('🎯 [PreviewCard] Remount trigger received:', remountTrigger);
@@ -210,6 +215,7 @@ export default function PreviewCard({
   const tpl = loaded ?? template ?? defaultTemplate;
   const { color, border, bgImage, fontFamily } = tpl;
 
+  /* ---------- 去重 ---------- */
   const deduplicateLinks = useCallback((links: UnifiedLinkItem[] = []): UnifiedLinkItem[] => {
     const seen = new Set<string>();
     const result: UnifiedLinkItem[] = [];
@@ -233,7 +239,7 @@ export default function PreviewCard({
         // social / youtube / spotify / custom
         key = `${link.type}:${(link.platform ?? '').toLowerCase()}:${link.url}`;
       } else {
-        continue;
+        continue; // 不可能進來，但保險
       }
 
       if (!seen.has(key)) {
@@ -252,6 +258,8 @@ export default function PreviewCard({
 
   /* ---------- render helper ---------- */
   const renderItem = useCallback((item: UnifiedLinkItem) => {
+
+    // ✅ 使用 type guards 而不是 Extract
     if (item.type === 'objekt') {
       if (!item.objekts?.length) return null;
       return (
@@ -293,6 +301,7 @@ export default function PreviewCard({
       );
     }
 
+    // YouTube 嵌入
     if (item.type === 'youtube') {
       return (
         <iframe
@@ -306,6 +315,7 @@ export default function PreviewCard({
       );
     }
 
+    // Spotify 嵌入
     if (item.type === 'spotify') {
       return (
         <iframe
@@ -321,6 +331,7 @@ export default function PreviewCard({
       );
     }
 
+    // 社群平台連結（內建平台，有圖標）
     if (item.type === 'social') {
       return (
         <a
@@ -350,9 +361,17 @@ export default function PreviewCard({
       );
     }
 
+    // ✅ 修正：自訂連結 - 正確顯示用戶自定義的 platform 名稱
     if (item.type === 'custom') {
       // 優先順序：title > platform > '自訂連結'
-      const displayText = item.title?.trim() || item.platform?.trim() || '自訂連結';
+    const displayText = item.platform?.trim() || item.title?.trim() || '自訂連結';
+    console.log('🏷️ [PreviewCard] Custom link display text:', { 
+      itemId: item.id,
+      title: item.title,
+      platform: item.platform,
+      displayText,
+      remountTrigger
+    });
       
       return (
         <a
@@ -360,7 +379,7 @@ export default function PreviewCard({
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block px-4 py-3 text-center transition hover:scale-[1.02]"
+          className="block px-4 py-3 text-left transition hover:scale-[1.02]"
           style={{
             backgroundColor: color.buttonPrimary,
             borderRadius: `${border.radius}px`,
@@ -368,7 +387,7 @@ export default function PreviewCard({
             color: '#fff',
           }}
         >
-          <span className="text-sm">{displayText}</span>
+          <span className="text-sm" style={{ color: color.fontPrimary }}>{displayText}</span>
         </a>
       );
     }

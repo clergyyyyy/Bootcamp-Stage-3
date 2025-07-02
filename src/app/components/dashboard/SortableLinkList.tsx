@@ -248,7 +248,8 @@ function DraggableItem({
     }
   };
 
-  const handleBlur = (e: React.FocusEvent) => {
+  // 修正：移除未使用的參數 e
+  const handleBlur = () => {
     setTimeout(() => {
       const activeElement = document.activeElement;
       const currentContainer = ref.current?.querySelector('[data-editing-container]');
@@ -340,8 +341,14 @@ function DraggableItem({
                 value={draftPlatform}
                 onChange={(e) => setDraftPlatform(e.target.value)}
                 onBlur={() => {
+                  console.log('📝 [SortableLinkList] Platform editing finished:', { 
+                    itemId: item.id, 
+                    oldPlatform: item.platform, 
+                    newPlatform: draftPlatform 
+                  });
                   setPlatformEditing(false);
                   if (draftPlatform !== item.platform) {
+                    console.log('🔄 [SortableLinkList] Calling onUpdateUnifiedLink for platform change');
                     onUpdateUnifiedLink(item.id, { platform: draftPlatform });
                   }
                 }}
