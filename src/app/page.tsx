@@ -6,6 +6,7 @@ import Aurora from "./components/Aurora";
 import TiltedCard from './components/TiltedCard';
 import LottieComponent from './components/LottieComponent';
 import ScrollAnimation from './components/ScrollAnimation';
+import { ZoomParallax } from './components/ZoomParallex';
 import Image from 'next/image';
 import Button from './components/Button';
 import Link from 'next/link';
@@ -151,6 +152,13 @@ function HomePage() {
             <SectionOne />
             <SectionTwo />
             <SectionThree />
+            <ZoomParallax
+  iconSrc="/ObjektTitle.svg"
+  backgroundSrc="/objekt2.png"
+  iconAlt="Your Icon"
+  iconSize={700}
+  height={700}
+/>
             <Footer />
         </div>
     );
