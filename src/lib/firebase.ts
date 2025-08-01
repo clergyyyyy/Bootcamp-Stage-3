@@ -3,13 +3,13 @@ import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBedSDe2cTZ07RNpG82t2IWKs8fIXFAJeg",
-  authDomain: "react-practice-44527.firebaseapp.com",
-  projectId: "react-practice-44527",
-  storageBucket: "react-practice-44527.firebasestorage.app",  
-  messagingSenderId: "804314782595",
-  appId: "1:804314782595:web:3aecff02a8b3cae4e134b6",
-  measurementId: "G-W4YX61WDGG",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
@@ -17,9 +17,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 
-export { app, db };
-
-export { auth, provider, signInWithPopup };     
+export { app, db, auth, provider, signInWithPopup };
 
 
 
