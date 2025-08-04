@@ -95,7 +95,8 @@ const TiltedCardComponent = React.memo(() => {
   const tiltedCardProps = useMemo(() => ({
     imageSrc: "/Landing_card.png",
     altText: "My Awesome Card",
-    captionText: "Get to know me on FanLink"
+    captionText: "Get to know me on FanLink",
+    showMobileWarning: false,
   }), []);
 
   return <TiltedCard {...tiltedCardProps} />;

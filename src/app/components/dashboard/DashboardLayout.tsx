@@ -98,12 +98,14 @@ export default function DashboardLayout({
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownAnimating, setDropdownAnimating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const previewRef = useRef<HTMLDivElement>(null);
 
   // 新增：預覽重新載入狀態
   const [previewKey, setPreviewKey] = useState(0);        // 用於拖曳後重新掛載整個組件
   const [remountTrigger, setRemountTrigger] = useState(0); // 用於數據更新重新渲染
-  const [isDragInProgress, setIsDragInProgress] = useState(false);
+  const [isDragInProgress, setIsDragInProgress] = useState(true);
+
+  const previewRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
 
   /* ------------------------- 拖曳處理 ------------------------ */
   const handleDragStart = useCallback(() => {
@@ -407,39 +409,47 @@ const handleUpdateUnifiedLink = (id: string, upd: Partial<UnifiedLinkItem>) => {
           )}
 
           {/* Preview panel */}
-          <aside className="flex-[2_2_0%] min-w-[360px] max-w-[600px] overflow-y-auto border-l-2 border-gray-200 bg-gray-100 lg:block relative">
+        <aside 
+          ref={previewContainerRef}  // ✅ 將 ref 綁定到 aside 元素
+          className="flex-[2_2_0%] min-w-[360px] max-w-[600px] overflow-y-auto border-l-2 border-gray-200 bg-gray-100 lg:block relative"
+        >
             {/* ✅ 拖曳時的覆蓋層提示 */}
-            {isDragInProgress && (
-              <div
-                className={`
-                  absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-300
-                  ${isDragInProgress ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-                `}
-                style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-              >
-                <div className="bg-white px-4 py-2 rounded-lg shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <span className="text-sm text-gray-600">Updating...</span>
-                  </div>
-                </div>
+        {/* ✅ Fixed 遮罩：覆蓋整個預覽區域，不受滾動影響 */}
+        {isDragInProgress && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300"
+            style={{ 
+              backgroundColor: 'rgba(0,0,0,0.1)',
+              // 🎯 只覆蓋預覽區域的範圍
+              left: previewContainerRef.current?.getBoundingClientRect().left || 'auto',
+              top: previewContainerRef.current?.getBoundingClientRect().top || 'auto',
+              width: previewContainerRef.current?.getBoundingClientRect().width || 'auto',
+              height: previewContainerRef.current?.getBoundingClientRect().height || 'auto',
+            }}
+          >
+            <div className="bg-white px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                <span className="text-sm text-gray-600 font-medium">Updating preview...</span>
               </div>
-            )}
+            </div>
+          </div>
+        )}
             
-<div ref={previewRef}>
-  <PreviewCard
-    key={`preview-${previewKey}`}                    // 拖曳時完整重新掛載
-    profile={{
-      avatarUrl: avatarUrl || '',
-      bioTitle: bioTitle || '',
-      introduction: bio || '',
-      links,
-      siteID: siteID || '',
-    }}
-    template={template || undefined}
-    remountTrigger={remountTrigger}
-  />
-</div>
+          <div ref={previewRef}>
+            <PreviewCard
+              key={`preview-${previewKey}`}                    // 拖曳時完整重新掛載
+              profile={{
+                avatarUrl: avatarUrl || '',
+                bioTitle: bioTitle || '',
+                introduction: bio || '',
+                links,
+                siteID: siteID || '',
+              }}
+              template={template || undefined}
+              remountTrigger={remountTrigger}
+            />
+          </div>
           </aside>
         </div>
       </div>

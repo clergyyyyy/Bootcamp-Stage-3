@@ -9,20 +9,7 @@ import type { Template } from '@/types/Template';
 import type { Profile } from '@/types/profile';
 import type { UnifiedLinkItem, ObjektNFT } from '@/types/unified-link';
 import { isTextItem, isObjektItem, isLinkItem } from '@/types/unified-link';
-
-/* ---------- static ---------- */
-const socialIcon: Record<string, string> = {
-  Instagram: '/icons/instagram.svg',
-  YouTube: '/icons/youtube.svg',
-  Threads: '/icons/threads.svg',
-  X: '/icons/x.svg',
-  GitHub: '/icons/github.svg',
-  Spotify: '/icons/spotify.svg',
-  Shopee: '/icons/shopee.svg',
-  LINE: '/icons/line.svg',
-  TikTok: '/icons/tiktok.svg',
-  Facebook: '/icons/facebook.svg',
-};
+import { socialIcon } from '@/utils/socialIcon';
 
 /* ---------- template fallback ---------- */
 const defaultTemplate: Template = {
@@ -331,7 +318,7 @@ export default function PreviewCard({
       );
     }
 
-    // 社群平台連結（內建平台，有圖標）
+    // ✅ 社群平台連結（使用導入的 socialIcon）
     if (item.type === 'social') {
       return (
         <a
