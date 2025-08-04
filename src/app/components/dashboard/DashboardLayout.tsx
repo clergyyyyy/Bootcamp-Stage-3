@@ -99,10 +99,9 @@ export default function DashboardLayout({
   const [dropdownAnimating, setDropdownAnimating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // 新增：預覽重新載入狀態
   const [previewKey, setPreviewKey] = useState(0);        // 用於拖曳後重新掛載整個組件
   const [remountTrigger, setRemountTrigger] = useState(0); // 用於數據更新重新渲染
-  const [isDragInProgress, setIsDragInProgress] = useState(true);
+  const [isDragInProgress, setIsDragInProgress] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
